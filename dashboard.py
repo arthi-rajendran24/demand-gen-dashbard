@@ -283,14 +283,14 @@ data = [
     {
         "update_as": "Mar 2025",
         "Domain": "apsystem.it",
-        "endpoints": 0,
+        "endpoints": 52,
         "revenue": 2338.25,
         "edition": "Enterprise",
         "license_date": "14/3/2025",
         "product": "Endpoint Central",
-        "country": "",
-        "industry": "",
-        "type": "",
+        "country": "Netherlands",
+        "industry": "Renewable energy sector",
+        "type": "Zero Cost",
         "cpl": 0.00
     },
     {
