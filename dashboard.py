@@ -774,7 +774,7 @@ data = [
         "type": "Zero-Cost",
         "cpl": 0.00
     },
-]
+
 ]
 
 
