@@ -589,7 +589,7 @@ data = [
         "product": "Endpoint Central",
         "country": "Germany",
         "industry": "Concrete Production Technology",
-        "type": "Zero cost",
+        "type": "Zero Cost",
         "cpl": 0.00
     },
     {
