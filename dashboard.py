@@ -563,7 +563,7 @@ data = [
         "product": "Endpoint Central",
         "country": "Brazil",
         "industry": "Footwear Manufacturing",
-        "type": "Zero-Cost",
+        "type": "Zero Cost",
         "cpl": 0.00
     },
     {
@@ -589,7 +589,7 @@ data = [
         "product": "Endpoint Central",
         "country": "Germany",
         "industry": "Concrete Production Technology",
-        "type": "Zero-cost",
+        "type": "Zero cost",
         "cpl": 0.00
     },
     {
@@ -602,7 +602,7 @@ data = [
         "product": "MDM OnDemand",
         "country": "Canada",
         "industry": "Landscape Construction",
-        "type": "Zero-Cost",
+        "type": "Zero Cost",
         "cpl": 0.00
     },
     {
@@ -628,7 +628,7 @@ data = [
         "product": "Patch Manager Plus",
         "country": "Switzerland",
         "industry": "IT Consulting",
-        "type": "Zero-Cost",
+        "type": "Zero Cost",
         "cpl": 0.00
     },
     {
@@ -641,7 +641,7 @@ data = [
         "product": "Vulnerability Manager Plus",
         "country": "Italy",
         "industry": "Spirits & Distillation",
-        "type": "Zero-Cost",
+        "type": "Zero Cost",
         "cpl": 0.00
     },
     {
@@ -654,7 +654,7 @@ data = [
         "product": "Endpoint Central",
         "country": "Italy",
         "industry": "Spirits & Distillation",
-        "type": "Zero-Cost",
+        "type": "Zero Cost",
         "cpl": 0.00
     },
     {
@@ -667,7 +667,7 @@ data = [
         "product": "OS Deployer",
         "country": "Italy",
         "industry": "Spirits & Distillation",
-        "type": "Zero-Cost",
+        "type": "Zero Cost",
         "cpl": 0.00
     },
     {
@@ -680,7 +680,7 @@ data = [
         "product": "Endpoint Central",
         "country": "South Africa",
         "industry": "Customer Experience Management",
-        "type": "Zero-Cost",
+        "type": "Zero Cost",
         "cpl": 0.00
     },
     {
@@ -693,7 +693,7 @@ data = [
         "product": "Device Control Plus",
         "country": "Romania",
         "industry": "Government Services",
-        "type": "Zero-Cost",
+        "type": "Zero Cost",
         "cpl": 0.00
     },
     {
@@ -732,7 +732,7 @@ data = [
         "product": "Endpoint Central",
         "country": "Cyprus",
         "industry": "Blockchain & Cryptocurrency",
-        "type": "Zero-Cost",
+        "type": "Zero Cost",
         "cpl": 0.00
     },
     {
@@ -745,7 +745,7 @@ data = [
         "product": "Endpoint Central Cloud",
         "country": "Italy",
         "industry": "Construction & Real Estate",
-        "type": "Zero-Cost",
+        "type": "Zero Cost",
         "cpl": 0.00
     },
     {
@@ -758,7 +758,7 @@ data = [
         "product": "Endpoint Central Cloud",
         "country": "Denmark",
         "industry": "Packaging Solutions",
-        "type": "Zero-Cost",
+        "type": "Zero Cost",
         "cpl": 0.00
     },
     {
@@ -771,7 +771,7 @@ data = [
         "product": "Patch Manager Plus",
         "country": "Germany",
         "industry": "Automotive manufacturing",
-        "type": "Zero-Cost",
+        "type": "Zero Cost",
         "cpl": 0.00
     },
 
