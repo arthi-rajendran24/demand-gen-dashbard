@@ -540,8 +540,7 @@ data = [
     "type": "Zero Cost",
     "cpl": 0.00
   },
-data = [
-    {
+ {
         "update_as": "May 2025",
         "Domain": "hirschsecure.com",
         "endpoints": 206,
