@@ -816,9 +816,11 @@ processed_df = process_data(df)
 total_revenue = processed_df['revenue'].sum()
 total_endpoints = processed_df['endpoints'].sum()
 
-# Count lead types
-paid_leads = processed_df[processed_df['type'] == 'Purchased'].shape[0]
-zero_cost_leads = processed_df[processed_df['type'] == 'Zero Cost'].shape[0]
+# Count unique domains by lead type
+unique_domains = processed_df[['Domain', 'type']].drop_duplicates()
+
+paid_leads = unique_domains[unique_domains['type'] == 'Purchased'].shape[0]
+zero_cost_leads = unique_domains[unique_domains['type'] == 'Zero Cost'].shape[0]
 
 # Calculate revenue by lead type
 revenue_by_lead_type = processed_df.groupby('type')['revenue'].sum().reset_index()
