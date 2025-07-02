@@ -64,7 +64,7 @@ def load_data(url):
 # 2. Go to the file on GitHub and click the "Raw" button.
 # 3. Copy the URL from your browser's address bar.
 # 4. Paste the RAW GitHub URL here.
-GITHUB_URL = "https://github.com/arthi-rajendran24/demand-gen-dashbard/blob/main/data_Conversions.csv"
+GITHUB_URL = "https://raw.githubusercontent.com/arthi-rajendran24/demand-gen-dashbard/refs/heads/main/data_Conversions.csv"
 
 # Load the data
 df_raw = load_data(GITHUB_URL)
