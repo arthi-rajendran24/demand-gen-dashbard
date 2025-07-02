@@ -17,17 +17,29 @@ st.set_page_config(
 def load_data(url):
     """
     Loads data from the given URL, performs preprocessing, and returns a DataFrame.
-    The @st.cache_data decorator ensures this function only runs once, caching the result.
+    This version includes robust column name cleaning.
     """
     try:
         df = pd.read_csv(url)
         
         # --- Data Preprocessing ---
+        
+        # ***** THE NEW, MORE ROBUST FIX IS HERE *****
+        # Clean all column names by stripping leading/trailing whitespace.
+        # This solves the issue where the column might be " Dates" instead of "Dates".
+        df.columns = df.columns.str.strip()
+        
+        # Now we can safely check for the cleaned column name.
+        if 'Dates' in df.columns:
+            df.rename(columns={'Dates': 'Date'}, inplace=True)
+        elif 'Date' not in df.columns:
+            # If after cleaning, neither 'Date' nor 'Dates' exists, raise an error.
+            raise KeyError("The required date column ('Date' or 'Dates') was not found in the CSV.")
+
         # Convert 'Date' to datetime objects
         df['Date'] = pd.to_datetime(df['Date'])
         
         # Anonymize domain names as requested
-        # Create a mapping from original domain to an anonymized name
         unique_domains = df['Domain'].unique()
         domain_mapping = {domain: f"Source {i+1}" for i, domain in enumerate(unique_domains)}
         df['Anonymized Source'] = df['Domain'].map(domain_mapping)
@@ -47,7 +59,9 @@ def load_data(url):
         return df, domain_mapping
 
     except Exception as e:
-        st.error(f"Error loading or processing data: {e}")
+        # Provide a more detailed error message for debugging
+        st.error(f"An error occurred during data loading or processing: {e}")
+        st.info("Common issues include: incorrect URL, malformed CSV, or missing critical columns like 'Dates', 'Domain', 'Revenue', etc. Please check the source file.")
         return pd.DataFrame(), {}
 
 # --- Load Data ---
@@ -56,7 +70,7 @@ df, domain_mapping = load_data(DATA_URL)
 
 # Check if data loading was successful
 if df.empty:
-    st.warning("Could not load data. Please check the URL or your connection.")
+    st.warning("Data loading failed. The dashboard cannot be displayed. Please review the error message above.")
     st.stop()
 
 # --- Sidebar Filters ---
@@ -173,37 +187,26 @@ col1, col2 = st.columns(2)
 with col1:
     st.markdown("#### Performance by Source")
     
-    # Aggregate data by source
     source_performance = filtered_df.groupby('Anonymized Source').agg({
-        'Revenue': 'sum',
-        'Cost': 'sum',
-        'Conversions': 'sum',
-        'Clicks': 'sum',
-        'Impressions': 'sum'
+        'Revenue': 'sum', 'Cost': 'sum', 'Conversions': 'sum',
+        'Clicks': 'sum', 'Impressions': 'sum'
     }).reset_index()
     
-    # Calculate source-level metrics
     source_performance['ROI'] = (source_performance['Revenue'] - source_performance['Cost']) / source_performance['Cost']
     source_performance['CPA'] = source_performance['Cost'] / source_performance['Conversions']
-    source_performance.replace([float('inf'), -float('inf')], None, inplace=True) # Handle infinite ROI/CPA
+    source_performance.replace([float('inf'), -float('inf')], None, inplace=True)
 
-    # User selection for bar chart metric
     metric_to_plot = st.selectbox(
         "Select metric to compare sources:",
-        options=['Revenue', 'Conversions', 'ROI', 'CPA'],
-        index=0
+        options=['Revenue', 'Conversions', 'ROI', 'CPA'], index=0
     )
 
     is_ascending = True if metric_to_plot == 'CPA' else False
     
     fig_source_bar = px.bar(
         source_performance.sort_values(by=metric_to_plot, ascending=is_ascending).head(15),
-        x=metric_to_plot,
-        y='Anonymized Source',
-        orientation='h',
-        title=f'Top Sources by {metric_to_plot}',
-        labels={'Anonymized Source': 'Source'},
-        text_auto=True
+        x=metric_to_plot, y='Anonymized Source', orientation='h',
+        title=f'Top Sources by {metric_to_plot}', labels={'Anonymized Source': 'Source'}, text_auto=True
     )
     fig_source_bar.update_traces(texttemplate='%{x:,.2f}' if metric_to_plot in ['ROI', 'CPA'] else '%{x:,.0f}', textposition='outside')
     st.plotly_chart(fig_source_bar, use_container_width=True)
@@ -212,19 +215,14 @@ with col1:
 with col2:
     st.markdown("#### Contribution by Source")
     
-    # User selection for pie chart metric
     pie_metric = st.selectbox(
         "Select metric for contribution pie chart:",
-        options=['Revenue', 'Conversions', 'Cost'],
-        index=0
+        options=['Revenue', 'Conversions', 'Cost'], index=0
     )
     
     fig_pie = px.pie(
-        source_performance,
-        values=pie_metric,
-        names='Anonymized Source',
-        title=f'Contribution of each Source to Total {pie_metric}',
-        hole=0.4 # for a donut chart effect
+        source_performance, values=pie_metric, names='Anonymized Source',
+        title=f'Contribution of each Source to Total {pie_metric}', hole=0.4
     )
     fig_pie.update_traces(textposition='inside', textinfo='percent+label')
     st.plotly_chart(fig_pie, use_container_width=True)
@@ -239,16 +237,10 @@ col1, col2 = st.columns(2)
 with col1:
     st.markdown("#### Cost vs. Revenue by Source")
     fig_scatter = px.scatter(
-        filtered_df,
-        x='Cost',
-        y='Revenue',
-        color='Anonymized Source',
-        size='Conversions',
-        hover_data=['Date'],
+        filtered_df, x='Cost', y='Revenue', color='Anonymized Source',
+        size='Conversions', hover_data=['Date'],
         title='Cost vs. Revenue (Bubble size represents Conversions)',
-        size_max=60,
-        log_x=True, # Use log scale for better visualization if values are spread out
-        log_y=True
+        size_max=60, log_x=True, log_y=True
     )
     fig_scatter.update_layout(xaxis_title="Cost (Log Scale)", yaxis_title="Revenue (Log Scale)")
     st.plotly_chart(fig_scatter, use_container_width=True)
@@ -256,25 +248,19 @@ with col1:
 with col2:
     st.markdown("#### Key Efficiency Metrics Over Time")
     efficiency_df = filtered_df.groupby('Date').agg({
-        'CTR': 'mean',
-        'CPC': 'mean',
-        'CPA': 'mean'
+        'CTR': 'mean', 'CPC': 'mean', 'CPA': 'mean'
     }).reset_index()
     
     efficiency_metric = st.selectbox(
         "Select an efficiency metric to view over time:",
-        options=['CTR', 'CPC', 'CPA'],
-        index=2 # Default to CPA
+        options=['CTR', 'CPC', 'CPA'], index=2
     )
     
     fig_efficiency = px.line(
-        efficiency_df,
-        x='Date',
-        y=efficiency_metric,
-        title=f'Daily Average {efficiency_metric} Trend',
-        markers=True
+        efficiency_df, x='Date', y=efficiency_metric,
+        title=f'Daily Average {efficiency_metric} Trend', markers=True
     )
-    fig_efficiency.update_traces(line=dict(color='#d62728')) # Use a distinct color
+    fig_efficiency.update_traces(line=dict(color='#d62728'))
     st.plotly_chart(fig_efficiency, use_container_width=True)
     
 st.markdown("---")
@@ -283,15 +269,10 @@ st.markdown("---")
 st.subheader("Detailed Data Explorer")
 st.markdown("Use the filters in the sidebar to drill down into the data.")
 
-# Show a subset of columns for clarity
-display_cols = [
-    'Date', 'Anonymized Source', 'Conversions', 'Revenue', 'Cost', 
-    'ROI', 'CPA', 'Clicks', 'CTR', 'CPC'
-]
+display_cols = ['Date', 'Anonymized Source', 'Conversions', 'Revenue', 'Cost', 'ROI', 'CPA', 'Clicks', 'CTR', 'CPC']
 st.dataframe(
     filtered_df[display_cols].sort_values(by='Date', ascending=False).reset_index(drop=True),
-    use_container_width=True,
-    hide_index=True
+    use_container_width=True, hide_index=True
 )
 
 st.sidebar.markdown("---")
