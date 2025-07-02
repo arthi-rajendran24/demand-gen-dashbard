@@ -1,396 +1,202 @@
-import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-# Set page config
-st.set_page_config(
-    page_title="Revenue Dashboard",
-    page_icon="📊",
-    layout="wide"
-)
+# --- 1. Data Loading and Cleaning (from GitHub) ---
 
-# Custom CSS for styling
-st.markdown("""
-<style>
-    .metric-card {
-        background-color: #f8f9fa;
-        border-radius: 5px;
-        padding: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-        text-align: center;
-    }
-    .metric-title {
-        font-size: 18px;
-        font-weight: 500;
-        color: #333;
-    }
-    .metric-value {
-        font-size: 24px;
-        font-weight: 700;
-        margin-top: 10px;
-    }
-    .chart-container {
-        background-color: white;
-        border-radius: 5px;
-        padding: 15px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-        margin-bottom: 20px;
-    }
-    .blue-bg { background-color: #e6f3ff; }
-    .green-bg { background-color: #e6fff0; }
-    .yellow-bg { background-color: #fffde6; }
-    .purple-bg { background-color: #f2e6ff; }
-</style>
-""", unsafe_allow_html=True)
-
-# --- DATA LOADING AND CLEANING ---
-
-@st.cache_data(ttl=600) # Cache the data for 10 minutes
 def load_and_clean_data(url):
-    """Load data from a GitHub URL and rename columns."""
+    """Loads data from the specified URL and performs thorough cleaning."""
+    print(f"Fetching data from {url}...")
     try:
-        # Load the raw data from the CSV
+        # Pandas can read directly from a URL
         df = pd.read_csv(url)
-
-        # --- IMPORTANT: Column Renaming ---
-        # This dictionary maps the names from your CSV file to the names the script expects.
-        # Note the handling of spaces and special characters in 'Revenue (in USD )'.
-        # Note that 'Region' from your file is being mapped to 'country' for the charts.
-        rename_map = {
-            'Update as of': 'update_as',
-            'Domain': 'domain',
-            'Endpoints': 'endpoints',
-            'Revenue (in USD )': 'revenue',
-            'Edition': 'edition',
-            'License Date': 'license_date',
-            'Product': 'product',
-            'Region': 'country',  # Mapping 'Region' to 'country'
-            'Industry': 'industry',
-            'Type': 'type',
-            'CPL': 'cpl'
-        }
-        df = df.rename(columns=rename_map)
-
-        # Ensure all required columns exist after renaming
-        required_cols = list(rename_map.values())
-        if not all(col in df.columns for col in required_cols):
-            st.error(f"One or more required columns are missing after renaming. Expected: {required_cols}")
-            return pd.DataFrame()
-
-        return df
-
     except Exception as e:
-        st.error(f"Error loading or cleaning data from GitHub: {e}")
-        return pd.DataFrame()
+        print(f"Error fetching or reading data from URL: {e}")
+        return None
 
-# The RAW URL for your GitHub file
-GITHUB_URL = "https://raw.githubusercontent.com/arthi-rajendran24/demand-gen-dashbard/refs/heads/main/data_Conversions.csv"
+    # Drop the 'Total' row and any fully empty rows
+    if 'Total' in df['Month'].values:
+        df = df[df['Month'] != 'Total'].reset_index(drop=True)
+    df.dropna(how='all', inplace=True)
+
+    # --- Clean and standardize columns ---
+
+    # Clean 'Revenue' column (remove $, commas)
+    df['Revenue'] = df['Revenue'].astype(str).str.replace(r'[$,]', '', regex=True).astype(float)
+
+    # Clean and convert 'Endpoints'
+    df['Endpoints'] = pd.to_numeric(df['Endpoints'], errors='coerce').fillna(0).astype(int)
+
+    # Convert 'License Date' to datetime, handling potential mixed formats
+    df['License Date'] = pd.to_datetime(df['License Date'], errors='coerce', dayfirst=False)
+    # For dates like 31/10/2024, a second pass with dayfirst=True can fix errors
+    df['License Date'].fillna(pd.to_datetime(df['License Date'], errors='coerce', dayfirst=True), inplace=True)
+    df['MonthYear'] = df['License Date'].dt.to_period('M').astype(str)
+
+    # Standardize 'Type' column (handles 'Zero Cost', 'Zero-cost', 'Purchased', 'Purhased')
+    df['Type'] = df['Type'].str.strip().str.replace('-', ' ').str.title()
+    type_map = {'Purhased': 'Purchased', 'Zero Cost': 'Zero Cost'}
+    df['Type'] = df['Type'].map(type_map).fillna(df['Type']) # Keep original if not in map
+    df['Type'] = df['Type'].fillna('Other')
+
+    # Standardize 'Edition' column
+    df['Edition'] = df['Edition'].str.replace(r' \(.*\)', '', regex=True).str.strip()
+
+    # Standardize 'Product' column (handle abbreviations and casing)
+    product_map = {
+        'EC': 'Endpoint Central', 'EC Cloud': 'Endpoint Central Cloud',
+        'EC MSP Cloud': 'Endpoint Central MSP Cloud',
+        'Endpoint central cloud': 'Endpoint Central Cloud',
+        'PCP': 'Patch Manager Plus', 'PMP': 'Patch Manager Plus',
+        'PMP Cloud': 'Patch Manager Plus Cloud',
+        'VMP': 'Vulnerability Manager Plus',
+        'MDM': 'Mobile Device Manager Plus',
+        'MDMOnDemand': 'Mobile Device Manager Plus Cloud',
+        'Patch manager Plus': 'Patch Manager Plus',
+    }
+    df['Product'] = df['Product'].str.strip().replace(product_map)
+
+    # Handle multiple products in one cell by splitting and exploding
+    df['Product'] = df['Product'].str.split(', ')
+    df = df.explode('Product')
+    df['Product'] = df['Product'].str.strip()
+
+    # Clean 'Industry' column (remove newlines)
+    df['Industry'] = df['Industry'].str.replace('\n', ' ', regex=False).str.strip()
+
+    # Correct region names
+    df['Region'] = df['Region'].replace({'South Arica': 'South Africa'})
+
+    print("Data cleaning complete.")
+    return df.sort_values('License Date').reset_index(drop=True)
+
+# URL of the raw CSV file on GitHub
+github_url = 'https://raw.githubusercontent.com/arthi-rajendran24/demand-gen-dashbard/refs/heads/main/data_Conversions.csv'
 
 # Load and clean the data
-df_raw = load_and_clean_data(GITHUB_URL)
+df_clean = load_and_clean_data(github_url)
 
-# Stop the app if data loading fails
-if df_raw.empty:
-    st.warning("Could not load or process data. Please check the GitHub URL and column names in the CSV.")
-    st.stop()
+if df_clean is not None and not df_clean.empty:
+    # --- 2. Data Analysis & Aggregation ---
+    print("Analyzing data...")
 
-# --- END OF DATA LOADING ---
+    # KPIs
+    total_revenue = df_clean['Revenue'].sum()
+    total_endpoints = df_clean['Endpoints'].sum()
+    num_deals = len(df_clean['Domain'].unique()) # Use unique domains for a more accurate deal count
+    avg_revenue_per_deal = total_revenue / num_deals
 
-# Title
-st.title("Revenue Analytics Dashboard")
-
-# Function to process data
-def process_data(df):
-    df = df.copy() # Make a copy to avoid SettingWithCopyWarning
-    df['revenue'] = pd.to_numeric(df['revenue'], errors='coerce')
-    df['endpoints'] = pd.to_numeric(df['endpoints'], errors='coerce')
-    df['update_as'] = df['update_as'].astype(str)
-    df['month'] = df['update_as'].str.split(' ').str[0]
-    df['product'] = df['product'].astype(str)
-    df['deployment'] = df['product'].str.lower().apply(lambda x: 'Cloud' if 'cloud' in str(x) else 'On-Premises')
-    df['edition'] = df['edition'].astype(str)
-    df['edition_simple'] = df['edition'].str.split(' ').str[0]
-    return df
-
-# Process the loaded data
-processed_df = process_data(df_raw)
-
-# --- The rest of your script remains unchanged ---
-
-# Calculate summary statistics
-total_revenue = processed_df['revenue'].sum()
-total_endpoints = processed_df['endpoints'].sum()
-
-# Using 'domain' (lowercase) as defined in our rename map
-unique_domains = processed_df[['domain', 'type']].drop_duplicates()
-paid_leads = unique_domains[unique_domains['type'] == 'Purchased'].shape[0]
-zero_cost_leads = unique_domains[unique_domains['type'] == 'Zero Cost'].shape[0]
-
-# Calculate revenue by lead type
-revenue_by_lead_type = processed_df.groupby('type')['revenue'].sum().reset_index()
-
-# Calculate average revenue per lead type
-avg_revenue_per_paid = (revenue_by_lead_type.loc[revenue_by_lead_type['type'] == 'Purchased', 'revenue'].iloc[0] / paid_leads) if paid_leads > 0 and not revenue_by_lead_type[revenue_by_lead_type['type'] == 'Purchased'].empty else 0
-avg_revenue_per_zero_cost = (revenue_by_lead_type.loc[revenue_by_lead_type['type'] == 'Zero Cost', 'revenue'].iloc[0] / zero_cost_leads) if zero_cost_leads > 0 and not revenue_by_lead_type[revenue_by_lead_type['type'] == 'Zero Cost'].empty else 0
+    # Grouped data for charts
+    monthly_revenue = df_clean.groupby('MonthYear')['Revenue'].sum().reset_index()
+    monthly_deals = df_clean.groupby('MonthYear')['Domain'].nunique().rename('Deal Count').reset_index()
+    revenue_by_region = df_clean.groupby('Region')['Revenue'].sum().sort_values(ascending=False).reset_index()
+    revenue_by_product = df_clean.groupby('Product')['Revenue'].sum().sort_values(ascending=False).reset_index()
+    revenue_by_industry = df_clean.groupby('Industry')['Revenue'].sum().sort_values(ascending=False).head(15).reset_index() # Top 15
+    revenue_by_type = df_clean.groupby('Type')['Revenue'].sum().reset_index()
+    deals_by_type = df_clean.groupby('Type')['Domain'].nunique().rename('Deal Count').reset_index()
 
 
-# Display KPI metrics in a row
-col1, col2, col3 = st.columns(3)
+    # --- 3. Visualization with Plotly ---
+    print("Creating visualizations...")
+    template = "plotly_white"
 
-with col1:
-    st.markdown(f"""
-    <div class="metric-card blue-bg">
-        <div class="metric-title">Total Revenue</div>
-        <div class="metric-value">${total_revenue:,.2f}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col2:
-    st.markdown(f"""
-    <div class="metric-card green-bg">
-        <div class="metric-title">Total Endpoints</div>
-        <div class="metric-value">{int(total_endpoints):,}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col3:
-    st.markdown(f"""
-    <div class="metric-card yellow-bg">
-        <div class="metric-title">Lead Types</div>
-        <div class="metric-value">{paid_leads} Paid / {zero_cost_leads} Zero Cost</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-col4, col5 = st.columns(2)
-
-with col4:
-    st.markdown(f"""
-    <div class="metric-card purple-bg">
-        <div class="metric-title">Avg. Revenue Per Paid Lead</div>
-        <div class="metric-value">${avg_revenue_per_paid:,.2f}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col5:
-    st.markdown(f"""
-    <div class="metric-card blue-bg">
-        <div class="metric-title">Avg. Revenue Per Zero Cost Lead</div>
-        <div class="metric-value">${avg_revenue_per_zero_cost:,.2f}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# Monthly Revenue Chart
-monthly_revenue = processed_df.groupby('month')['revenue'].sum().reset_index()
-
-# Ensure months are in correct order
-month_order = {'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
-               'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12}
-
-monthly_revenue['month_num'] = monthly_revenue['month'].map(month_order)
-monthly_revenue = monthly_revenue.sort_values('month_num')
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-    st.subheader("Monthly Revenue")
-
-    fig = px.bar(
-        monthly_revenue,
-        x='month',
-        y='revenue',
-        text_auto='.2s',
-        color_discrete_sequence=['#4F46E5'],
-        labels={'month': '', 'revenue': 'Revenue ($)'}
+    # Chart 1: Monthly Revenue and Deal Count
+    fig_monthly = make_subplots(specs=[[{"secondary_y": True}]])
+    fig_monthly.add_trace(
+        go.Bar(x=monthly_revenue['MonthYear'], y=monthly_revenue['Revenue'], name='Monthly Revenue', marker_color='cornflowerblue'),
+        secondary_y=False,
     )
-    fig.update_layout(
-        plot_bgcolor='white',
-        hovermode='closest',
-        margin=dict(t=10, l=10, r=10, b=10),
-        height=350
+    fig_monthly.add_trace(
+        go.Scatter(x=monthly_deals['MonthYear'], y=monthly_deals['Deal Count'], name='Deal Count', mode='lines+markers', line=dict(color='darkorange')),
+        secondary_y=True,
     )
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    fig_monthly.update_layout(title_text='<b>Monthly Revenue and Deal Count</b>', template=template)
+    fig_monthly.update_yaxes(title_text="Total Revenue ($)", secondary_y=False)
+    fig_monthly.update_yaxes(title_text="Number of Deals", secondary_y=True)
 
-# Monthly Customer Acquisition
-monthly_acquisition = processed_df.groupby(['month', 'type']).size().unstack(fill_value=0).reset_index()
-monthly_acquisition['month_num'] = monthly_acquisition['month'].map(month_order)
-monthly_acquisition = monthly_acquisition.sort_values('month_num')
-
-with col2:
-    st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-    st.subheader("Monthly Customer Acquisition")
-
-    fig = go.Figure()
-    if 'Purchased' in monthly_acquisition.columns:
-        fig.add_trace(go.Bar(
-            x=monthly_acquisition['month'],
-            y=monthly_acquisition['Purchased'],
-            name='Paid',
-            marker_color='#4F46E5'
-        ))
-    if 'Zero Cost' in monthly_acquisition.columns:
-        fig.add_trace(go.Bar(
-            x=monthly_acquisition['month'],
-            y=monthly_acquisition['Zero Cost'],
-            name='Zero-Cost',
-            marker_color='#10B981'
-        ))
-
-    fig.update_layout(
-        barmode='stack',
-        plot_bgcolor='white',
-        hovermode='closest',
-        margin=dict(t=10, l=10, r=10, b=10),
-        height=350
+    # Chart 2 & 3: Conversion Type Analysis (Revenue and Count)
+    fig_type = make_subplots(rows=1, cols=2, specs=[[{'type':'domain'}, {'type':'domain'}]])
+    fig_type.add_trace(go.Pie(labels=revenue_by_type['Type'], values=revenue_by_type['Revenue'], name="Revenue"), 1, 1)
+    fig_type.add_trace(go.Pie(labels=deals_by_type['Type'], values=deals_by_type['Deal Count'], name="Deals"), 1, 2)
+    fig_type.update_traces(hole=.4, hoverinfo="label+percent+value")
+    fig_type.update_layout(
+        title_text='<b>Conversion Type Analysis: Purchased vs. Zero Cost</b>',
+        annotations=[dict(text='By Revenue', x=0.16, y=0.5, font_size=16, showarrow=False),
+                    dict(text='By Deal Count', x=0.84, y=0.5, font_size=16, showarrow=False)],
+        template=template
     )
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
-col1, col2 = st.columns(2)
-
-# Revenue by Lead Type Pie Chart
-with col1:
-    st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-    st.subheader("Revenue by Lead Type")
-    fig = px.pie(
-        revenue_by_lead_type,
-        values='revenue',
-        names='type',
-        hole=0.4,
-        color_discrete_sequence=['#0088FE', '#00C49F'],
-        labels={'type': 'Lead Type', 'revenue': 'Revenue ($)'}
+    # Chart 4: Top 10 Revenue by Region
+    fig_region = px.bar(
+        revenue_by_region.head(10), x='Region', y='Revenue',
+        title='<b>Top 10 Regions by Revenue</b>', text_auto='.2s',
+        color='Revenue', color_continuous_scale='Blues'
     )
-    fig.update_traces(textinfo='percent+label', textposition='outside')
-    fig.update_layout(
-        annotations=[dict(text=f'${total_revenue:,.0f}', x=0.5, y=0.5, font_size=15, showarrow=False)],
-        margin=dict(t=10, l=10, r=10, b=10),
-        height=350
+    fig_region.update_traces(textposition='outside')
+    fig_region.update_layout(template=template)
+
+    # Chart 5: Revenue by Product
+    fig_product = px.bar(
+        revenue_by_product, y='Product', x='Revenue', orientation='h',
+        title='<b>Revenue by Product</b>', text_auto='.2s',
+        color='Revenue', color_continuous_scale='Greens'
     )
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    fig_product.update_layout(yaxis={'categoryorder':'total ascending'}, template=template)
 
-# Revenue by Country (using the 'Region' column from your sheet)
-revenue_by_country = processed_df.groupby('country')['revenue'].sum().reset_index()
-revenue_by_country = revenue_by_country.sort_values('revenue', ascending=False)
-
-with col2:
-    st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-    st.subheader("Revenue by Region") # Changed title to reflect source data
-    fig = px.pie(
-        revenue_by_country,
-        values='revenue',
-        names='country',
-        hole=0.4,
-        color_discrete_sequence=px.colors.qualitative.Plotly,
-        labels={'country': 'Region', 'revenue': 'Revenue ($)'}
+    # Chart 6: Revenue by Industry (Top 15)
+    fig_industry = px.bar(
+        revenue_by_industry, y='Industry', x='Revenue', orientation='h',
+        title='<b>Top 15 Industries by Revenue</b>', text_auto='.2s',
+        color='Revenue', color_continuous_scale='Purples'
     )
-    fig.update_traces(textinfo='percent+label', textposition='outside')
-    fig.update_layout(margin=dict(t=10, l=10, r=10, b=10), height=350)
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    fig_industry.update_layout(yaxis={'categoryorder':'total ascending'}, template=template)
 
-# ... (The rest of the charts will work correctly with the renamed columns) ...
-
-col1, col2 = st.columns(2)
-
-# Revenue by Edition
-if 'edition_simple' in processed_df.columns:
-    revenue_by_edition = processed_df.groupby('edition_simple')['revenue'].sum().reset_index()
-
-    with col1:
-        st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-        st.subheader("Revenue by Edition")
-
-        fig = px.pie(
-            revenue_by_edition,
-            values='revenue',
-            names='edition_simple',
-            hole=0.4,
-            color_discrete_sequence=['#0088FE', '#00C49F', '#FFBB28', '#FF8042'],
-            labels={'edition_simple': 'Edition', 'revenue': 'Revenue ($)'}
-        )
-        fig.update_traces(textinfo='percent+label',textposition='outside')
-        fig.update_layout(margin=dict(t=10, l=10, r=10, b=10), height=350)
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# Revenue by Deployment
-if 'deployment' in processed_df.columns:
-    revenue_by_deployment = processed_df.groupby('deployment')['revenue'].sum().reset_index()
-
-    with col2:
-        st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-        st.subheader("Revenue by Deployment")
-        fig = px.pie(
-            revenue_by_deployment,
-            values='revenue',
-            names='deployment',
-            hole=0.4,
-            color_discrete_sequence=['#0088FE', '#00C49F'],
-            labels={'deployment': 'Deployment', 'revenue': 'Revenue ($)'}
-        )
-        fig.update_traces(textinfo='percent+label', textposition='outside')
-        fig.update_layout(margin=dict(t=10, l=10, r=10, b=10), height=350)
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# Revenue by Product Bar Chart
-revenue_by_product = processed_df.groupby('product')['revenue'].sum().reset_index()
-revenue_by_product = revenue_by_product.sort_values('revenue', ascending=False)
-
-st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-st.subheader("Revenue by Product")
-fig = px.bar(
-    revenue_by_product,
-    y='product',
-    x='revenue',
-    orientation='h',
-    color_discrete_sequence=['#4F46E5'],
-    labels={'product': '', 'revenue': 'Revenue ($)'}
-)
-fig.update_layout(
-    plot_bgcolor='white',
-    hovermode='closest',
-    margin=dict(t=10, l=200, r=10, b=10),
-    height=400,
-    yaxis={'categoryorder': 'total ascending'}
-)
-st.plotly_chart(fig, use_container_width=True)
-st.markdown("</div>", unsafe_allow_html=True)
-
-# Using 'domain' (lowercase) for the final chart
-domain_count = processed_df['domain'].value_counts().reset_index()
-domain_count.columns = ['domain', 'Count']
-domain_count = domain_count[domain_count['domain'].notna() & (domain_count['domain'] != '')].head(10)
-
-if not domain_count.empty:
-    st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-    st.subheader("Top 10 Domains by Entry Count")
-
-    fig = px.bar(
-        domain_count,
-        y='domain',
-        x='Count',
-        orientation='h',
-        color_discrete_sequence=['#00C49F'],
-        labels={'domain': 'Domain', 'Count': 'Number of Entries'}
+    # Chart 7: Revenue Distribution (Deal Size)
+    fig_dist_rev = px.histogram(
+        df_clean, x="Revenue", nbins=30,
+        title='<b>Distribution of Deal Size (by Revenue)</b>'
     )
-    fig.update_layout(
-        plot_bgcolor='white',
-        hovermode='closest',
-        margin=dict(t=10, l=250, r=10, b=10),
-        height=400,
-        yaxis={'categoryorder': 'total ascending'}
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    fig_dist_rev.update_layout(bargap=0.1, template=template)
 
-# Footer
-st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: gray;'>© 2025 Revenue Analytics Dashboard</p>", unsafe_allow_html=True)
+    # Chart 8: Revenue by Region and Product
+    fig_treemap = px.treemap(
+        df_clean, path=[px.Constant("All Regions"), 'Region', 'Product'], values='Revenue',
+        color='Revenue', hover_data=['Endpoints'],
+        color_continuous_scale='RdBu',
+        title='<b>Revenue Treemap: Region > Product</b>'
+    )
+    fig_treemap.update_layout(margin = dict(t=50, l=25, r=25, b=25), template=template)
+
+
+    # --- 4. Assemble Dashboard HTML ---
+    print("Generating HTML dashboard...")
+
+    with open('Conversions_Dashboard.html', 'w') as f:
+        f.write('<html><head>')
+        f.write('<style>body{font-family: Arial, sans-serif; background-color: #f4f4f4;} h1, h2 {color: #333;} .grid-container {display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 20px;} .kpi {background-color: #fff; padding: 20px; text-align: center; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);} .kpi h2 {margin: 0; color: #555; font-size: 18px;} .kpi .value {font-size: 36px; font-weight: bold; color: #0056b3; margin-top: 5px;} .chart {grid-column: span 3; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);} .chart-half {grid-column: span 1; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);} @media (max-width: 900px) { .grid-container {grid-template-columns: 1fr;} .chart, .chart-half {grid-column: span 1;} }</style>')
+        f.write('<title>Conversions Dashboard</title>')
+        f.write('</head><body>')
+        f.write('<h1 style="text-align:center;">Business Conversions Analysis Dashboard</h1>')
+
+        # KPI Section
+        f.write('<div class="grid-container">')
+        f.write(f'<div class="kpi"><h2>Total Revenue</h2><div class="value">${total_revenue:,.2f}</div></div>')
+        f.write(f'<div class="kpi"><h2>Total Endpoints Sold</h2><div class="value">{total_endpoints:,}</div></div>')
+        f.write(f'<div class="kpi"><h2>Average Revenue per Deal</h2><div class="value">${avg_revenue_per_deal:,.2f}</div></div>')
+        
+        # Charts
+        f.write(f'<div class="chart">{fig_monthly.to_html(full_html=False, include_plotlyjs="cdn")}</div>')
+        f.write(f'<div class="chart">{fig_type.to_html(full_html=False, include_plotlyjs=False)}</div>')
+        f.write(f'<div class="chart-half">{fig_region.to_html(full_html=False, include_plotlyjs=False)}</div>')
+        f.write(f'<div class="chart-half">{fig_dist_rev.to_html(full_html=False, include_plotlyjs=False)}</div>')
+        f.write(f'<div class="chart-half">{fig_product.to_html(full_html=False, include_plotlyjs=False)}</div>')
+        f.write(f'<div class="chart">{fig_industry.to_html(full_html=False, include_plotlyjs=False)}</div>')
+        f.write(f'<div class="chart">{fig_treemap.to_html(full_html=False, include_plotlyjs=False)}</div>')
+
+        f.write('</div>') # Close grid-container
+        f.write('</body></html>')
+
+    print("Dashboard 'Conversions_Dashboard.html' created successfully.")
+else:
+    print("Could not generate dashboard because data loading or cleaning failed.")
