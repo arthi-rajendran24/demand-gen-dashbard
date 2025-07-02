@@ -39,908 +39,64 @@ st.markdown("""
         box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
         margin-bottom: 20px;
     }
-    .blue-bg {
-        background-color: #e6f3ff;
-    }
-    .green-bg {
-        background-color: #e6fff0;
-    }
-    .yellow-bg {
-        background-color: #fffde6;
-    }
-    .purple-bg {
-        background-color: #f2e6ff;
-    }
+    .blue-bg { background-color: #e6f3ff; }
+    .green-bg { background-color: #e6fff0; }
+    .yellow-bg { background-color: #fffde6; }
+    .purple-bg { background-color: #f2e6ff; }
 </style>
 """, unsafe_allow_html=True)
+
+# --- DATA LOADING ---
+
+@st.cache_data(ttl=600) # Cache the data for 10 minutes
+def load_data(url):
+    """Load data from a GitHub URL."""
+    try:
+        # Assuming the file is a CSV. If it's an Excel file, use pd.read_excel(url)
+        df = pd.read_csv(url)
+        return df
+    except Exception as e:
+        st.error(f"Error loading data from GitHub: {e}")
+        return pd.DataFrame() # Return empty DataFrame on error
+
+# --- IMPORTANT ---
+# 1. Upload your data file (e.g., data.csv) to your GitHub repository.
+# 2. Go to the file on GitHub and click the "Raw" button.
+# 3. Copy the URL from your browser's address bar.
+# 4. Paste the RAW GitHub URL here.
+GITHUB_URL = "https://github.com/arthi-rajendran24/demand-gen-dashbard/blob/main/data_Conversions.csv"
+
+# Load the data
+df_raw = load_data(GITHUB_URL)
+
+# Stop the app if data loading fails
+if df_raw.empty:
+    st.warning("Could not load data. Please check the GitHub URL in the code.")
+    st.info("Make sure the URL is the 'RAW' link to a CSV or Excel file on a public GitHub repository.")
+    st.stop()
+
+# --- END OF DATA LOADING ---
 
 # Title
 st.title("Revenue Analytics Dashboard")
 
-# Directly load the data from the table
-data = [
-    {
-        "update_as": "Jan 2025",
-        "Domain": "idexcorp.com",
-        "endpoints": 250,
-        "revenue": 7018.92,
-        "edition": "UEM",
-        "license_date": "30/01/2025",
-        "product": "Endpoint Central",
-        "country": "Netherlands",
-        "industry": "Industrial goods and machinery",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "Jan 2025",
-        "Domain": "redingtongroup.com",
-        "endpoints": 200,
-        "revenue": 2442.30,
-        "edition": "Enterprise",
-        "license_date": "30/01/2025",
-        "product": "PMP Cloud",
-        "country": "United Arab Emirates",
-        "industry": "IT",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "Feb 2025",
-        "Domain": "co.ellis.tx.us",
-        "endpoints": 580,
-        "revenue": 2982.00,
-        "edition": "Enterprise",
-        "license_date": "15/02/2025",
-        "product": "Patch Manager Plus",
-        "country": "US",
-        "industry": "Federal",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "Feb 2025",
-        "Domain": "aventiv.com",
-        "endpoints": 950,
-        "revenue": 8698.00,
-        "edition": "Enterprise",
-        "license_date": "14/02/2025",
-        "product": "Patch Manager Plus",
-        "country": "US",
-        "industry": "Federal",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "Feb 2025",
-        "Domain": "baystateinterpreters.com",
-        "endpoints": 110,
-        "revenue": 840.00,
-        "edition": "Enterprise",
-        "license_date": "2/4/2025",
-        "product": "Patch Manager Plus",
-        "country": "US",
-        "industry": "Translation services",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "Feb 2025",
-        "Domain": "thecityofriles.com",
-        "endpoints": 50,
-        "revenue": 1463.00,
-        "edition": "Professional",
-        "license_date": "13/02/2025",
-        "product": "Mobile Device Manager",
-        "country": "US",
-        "industry": "Federal",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "Feb 2025",
-        "Domain": "blackedge.com",
-        "endpoints": 200,
-        "revenue": 8075.00,
-        "edition": "Enterprise",
-        "license_date": "14/02/2025",
-        "product": "OS Deployer",
-        "country": "US",
-        "industry": "Finance",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "Feb 2025",
-        "Domain": "bobbrowauto.com",
-        "endpoints": 250,
-        "revenue": 1495.00,
-        "edition": "Enterprise",
-        "license_date": "2/11/2025",
-        "product": "OS Deployer",
-        "country": "US",
-        "industry": "Automotive",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "Feb 2025",
-        "Domain": "skylinenationalbank.com",
-        "endpoints": 500,
-        "revenue": 31488.00,
-        "edition": "UEM",
-        "license_date": "2/8/2025",
-        "product": "Endpoint Central",
-        "country": "US",
-        "industry": "Banking",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "Feb 2025",
-        "Domain": "orabandamining.com.au",
-        "endpoints": 256,
-        "revenue": 10007.97,
-        "edition": "Security",
-        "license_date": "27/2/2025",
-        "product": "Endpoint Central Cloud",
-        "country": "Australia",
-        "industry": "Mining industry",
-        "type": "Zero Cost",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "Feb 2025",
-        "Domain": "imagenetconsulting.com",
-        "endpoints": 575,
-        "revenue": 5941.00,
-        "edition": "Enterprise",
-        "license_date": "21/2/2025",
-        "product": "VMP",
-        "country": "US",
-        "industry": "IT",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "Feb 2025",
-        "Domain": "indysoft.com",
-        "endpoints": 70,
-        "revenue": 3173.00,
-        "edition": "Security",
-        "license_date": "26/2/2025",
-        "product": "Endpoint Central Cloud",
-        "country": "US",
-        "industry": "Software solutions",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "Feb 2025",
-        "Domain": "dessercom.org",
-        "endpoints": 250,
-        "revenue": 2016.00,
-        "edition": "Enterprise",
-        "license_date": "13/02/2025",
-        "product": "PMP Cloud",
-        "country": "Canada",
-        "industry": "Emergency medical services",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "Feb 2025",
-        "Domain": "toughbuilt.com",
-        "endpoints": 250,
-        "revenue": 4421.00,
-        "edition": "Enterprise",
-        "license_date": "28/2/2025",
-        "product": "Endpoint Central MSP Cloud",
-        "country": "US",
-        "industry": "Construction tools and accessories",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "Mar 2025",
-        "Domain": "bensonsforbed.co.uk",
-        "endpoints": 60,
-        "revenue": 101.12,
-        "edition": "Professional (Monthly payment)",
-        "license_date": "3/3/2025",
-        "product": "PMP Cloud",
-        "country": "UK",
-        "industry": "Retail",
-        "type": "Purchased",
-        "cpl": 0.60
-    },
-    {
-        "update_as": "Mar 2025",
-        "Domain": "buckeyebroadband.com",
-        "endpoints": 2800,
-        "revenue": 62810.20,
-        "edition": "UEM",
-        "license_date": "4/3/2025",
-        "product": "Endpoint Central Cloud",
-        "country": "US",
-        "industry": "Telecommunications",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "Mar 2025",
-        "Domain": "apsystem.it",
-        "endpoints": 52,
-        "revenue": 535.70,
-        "edition": "Enterprise",
-        "license_date": "14/3/2025",
-        "product": "VMP",
-        "country": "Netherlands",
-        "industry": "Renewable energy sector",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "Mar 2025",
-        "Domain": "apsystem.it",
-        "endpoints": 52,
-        "revenue": 2338.25,
-        "edition": "Enterprise",
-        "license_date": "14/3/2025",
-        "product": "Endpoint Central",
-        "country": "Netherlands",
-        "industry": "Renewable energy sector",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "Mar 2025",
-        "Domain": "aaml.com.sa",
-        "endpoints": 525,
-        "revenue": 3055.50,
-        "edition": "Enterprise",
-        "license_date": "28/3/2025",
-        "product": "Patch Manager Plus",
-        "country": "Saudi Arabia",
-        "industry": "Diagnostic imaging services",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "Mar 2025",
-        "Domain": "acmcle.com.hk",
-        "endpoints": 100,
-        "revenue": 255.94,
-        "edition": "Professional",
-        "license_date": "10/3/2025",
-        "product": "Patch Manager Plus",
-        "country": "Hong Kong",
-        "industry": "Educational",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "Mar 2025",
-        "Domain": "aurigaspa.com",
-        "endpoints": 680,
-        "revenue": 42104.70,
-        "edition": "Security",
-        "license_date": "31/3/2025",
-        "product": "Endpoint Central",
-        "country": "Italy",
-        "industry": "Information Technology and Services",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "Mar 2025",
-        "Domain": "nagase-nam.com",
-        "endpoints": 150,
-        "revenue": 4112.00,
-        "edition": "Enterprise",
-        "license_date": "26/3/2025",
-        "product": "Endpoint Central Cloud",
-        "country": "US",
-        "industry": "Chemical Manufacturing",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "1st-edge.com",
-    "endpoints": 175,
-    "revenue": 3010.00,
-    "edition": "Enterprise",
-    "license_date": "30/4/2025",
-    "product": "VMP",
-    "country": "US",
-    "industry": "Defense and Space Manufacturing",
-    "type": "Purchased",
-    "cpl": 0.40
-  },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "agrikemilau.com",
-    "endpoints": 50,
-    "revenue": 838.50,
-    "edition": "Enterprise",
-    "license_date": "23/4/2025",
-    "product": "Endpoint Central",
-    "country": "Indonesia",
-    "industry": "Agriculture",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "apsystems.tech",
-    "endpoints": 100,
-    "revenue": 2844.00,
-    "edition": "Security",
-    "license_date": "15/4/2025",
-    "product": "Endpoint Central Cloud",
-    "country": "Poland",
-    "industry": "Solar Energy / Renewable Energy",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "cna.org.br",
-    "endpoints": 515,
-    "revenue": 4024.00,
-    "edition": "Professional",
-    "license_date": "2/4/2025",
-    "product": "Endpoint Central",
-    "country": "Brazil",
-    "industry": "Nonprofit Research and Analysis",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "fairmountpark.com",
-    "endpoints": 180,
-    "revenue": 9492.00,
-    "edition": "Security",
-    "license_date": "30/4/2025",
-    "product": "Endpoint Central Cloud",
-    "country": "US, Canada",
-    "industry": "Gambling Facilities and Casinos",
-    "type": "Purchased",
-    "cpl": 0.40
-  },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "geniodiligence.it",
-    "endpoints": 85,
-    "revenue": 3630.00,
-    "edition": "Security",
-    "license_date": "30/4/2025",
-    "product": "Endpoint Central",
-    "country": "Italy",
-    "industry": "Banking / Fintech",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "harrisseeds.com",
-    "endpoints": 135,
-    "revenue": 5549.00,
-    "edition": "Enterprise",
-    "license_date": "24/4/2025",
-    "product": "Endpoint Central Cloud",
-    "country": "US",
-    "industry": "Farming / Horticulture",
-    "type": "Purchased",
-    "cpl": 0.40
-  },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "lamache.org",
-    "endpoints": 925,
-    "revenue": 28035.00,
-    "edition": "UEM",
-    "license_date": "9/4/2025",
-    "product": "Endpoint Central",
-    "country": "France",
-    "industry": "Education / Vocational Training",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "medicareonline.it",
-    "endpoints": 400,
-    "revenue": 13180.00,
-    "edition": "Professional",
-    "license_date": "30/4/2025",
-    "product": "Mobile Device Manager Plus Cloud",
-    "country": "Italy",
-    "industry": "Healthcare Data Analytics",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "prosearch.com",
-    "endpoints": 1755,
-    "revenue": 43862.00,
-    "edition": "Security",
-    "license_date": "30/4/2025",
-    "product": "Endpoint Central",
-    "country": "US",
-    "industry": "Legal Technology / E-Discovery",
-    "type": "Purchased",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "sau53.org",
-    "endpoints": 55,
-    "revenue": 3819.00,
-    "edition": "Enterprise",
-    "license_date": "26/4/2025",
-    "product": "Patch Manager Plus",
-    "country": "US",
-    "industry": "Education",
-    "type": "Purchased",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "shieldcompany.com.br",
-    "endpoints": 320,
-    "revenue": 6372.00,
-    "edition": "Security",
-    "license_date": "2/4/2025",
-    "product": "Endpoint Central",
-    "country": "Brazil",
-    "industry": "Healthcare Logistics / Cold Chain Solutions",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "whitelabgx.com",
-    "endpoints": 70,
-    "revenue": 3322.40,
-    "edition": "Security",
-    "license_date": "10/4/2025",
-    "product": "Endpoint Central Cloud",
-    "country": "France",
-    "industry": "Biotechnology Research",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "grupocox.com",
-    "endpoints": 5000,
-    "revenue": 44805.00,
-    "edition": "Security",
-    "license_date": "26/4/2025",
-    "product": "Endpoint Central Cloud",
-    "country": "Spain",
-    "industry": "Water and Energy Utilities",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "Apr 2025",
-    "Domain": "hindujahousingfinance.com",
-    "endpoints": 2515,
-    "revenue": 32095.40,
-    "edition": "Security",
-    "license_date": "30/4/2025",
-    "product": "Endpoint Central Cloud",
-    "country": "India",
-    "industry": "Financial Services / Housing Finance",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
- {
-        "update_as": "May 2025",
-        "Domain": "hirschsecure.com",
-        "endpoints": 206,
-        "revenue": 4865.00,
-        "edition": "Enterprise",
-        "license_date": "7/5/2025",
-        "product": "Endpoint Central",
-        "country": "US",
-        "industry": "Security Technology",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "vulcabras.com",
-        "endpoints": 1900,
-        "revenue": 22000.00,
-        "edition": "Security",
-        "license_date": "31/5/2025",
-        "product": "Endpoint Central",
-        "country": "Brazil",
-        "industry": "Footwear Manufacturing",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "xops.io",
-        "endpoints": 120,
-        "revenue": 1180.00,
-        "edition": "Enterprise",
-        "license_date": "10/5/2025",
-        "product": "PMP Cloud",
-        "country": "US",
-        "industry": "Software Development / IT Operations",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "wasa-technologies.com",
-        "endpoints": 100,
-        "revenue": 1174.25,
-        "edition": "Professional",
-        "license_date": "15/5/2025",
-        "product": "Endpoint Central",
-        "country": "Germany",
-        "industry": "Concrete Production Technology",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "landform.ca",
-        "endpoints": 38,
-        "revenue": 920.00,
-        "edition": "Professional",
-        "license_date": "9/5/2025",
-        "product": "MDM OnDemand",
-        "country": "Canada",
-        "industry": "Landscape Construction",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "kokusai-electric.com",
-        "endpoints": 310,
-        "revenue": 27240.00,
-        "edition": "UEM",
-        "license_date": "15/5/2025",
-        "product": "Endpoint Central",
-        "country": "US",
-        "industry": "Semiconductor Manufacturing Equipment",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "it-advisor.ch",
-        "endpoints": 50,
-        "revenue": 1677.00,
-        "edition": "Enterprise",
-        "license_date": "31/5/2025",
-        "product": "Patch Manager Plus",
-        "country": "Switzerland",
-        "industry": "IT Consulting",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "bonollo.it",
-        "endpoints": 125,
-        "revenue": 438.69,
-        "edition": "Enterprise",
-        "license_date": "24/5/2025",
-        "product": "Vulnerability Manager Plus",
-        "country": "Italy",
-        "industry": "Spirits & Distillation",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "bonollo.it",
-        "endpoints": 125,
-        "revenue": 1687.68,
-        "edition": "Enterprise",
-        "license_date": "24/5/2025",
-        "product": "Endpoint Central",
-        "country": "Italy",
-        "industry": "Spirits & Distillation",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "bonollo.it",
-        "endpoints": 125,
-        "revenue": 752.40,
-        "edition": "Enterprise",
-        "license_date": "24/5/2025",
-        "product": "OS Deployer",
-        "country": "Italy",
-        "industry": "Spirits & Distillation",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "merchantscx.co.za",
-        "endpoints": 3800,
-        "revenue": 21686.25,
-        "edition": "Enterprise",
-        "license_date": "29/5/2025",
-        "product": "Endpoint Central",
-        "country": "South Africa",
-        "industry": "Customer Experience Management",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "asp.gov.md",
-        "endpoints": 2500,
-        "revenue": 14323.40,
-        "edition": "Professional",
-        "license_date": "17/5/2025",
-        "product": "Device Control Plus",
-        "country": "Romania",
-        "industry": "Government Services",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "ny-creates.org",
-        "endpoints": 1100,
-        "revenue": 64950.00,
-        "edition": "Security",
-        "license_date": "13/5/2025",
-        "product": "Endpoint Central Cloud",
-        "country": "US",
-        "industry": "Semiconductor Research & Development",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "nederlander.com",
-        "endpoints": 250,
-        "revenue": 20220.00,
-        "edition": "UEM",
-        "license_date": "13/5/2025",
-        "product": "Endpoint Central Cloud",
-        "country": "US",
-        "industry": "Live Entertainment",
-        "type": "Purchased",
-        "cpl": 0.40
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "abxnetwork.pro",
-        "endpoints": 1000,
-        "revenue": 16158.00,
-        "edition": "Security",
-        "license_date": "10/5/2025",
-        "product": "Endpoint Central",
-        "country": "Cyprus",
-        "industry": "Blockchain & Cryptocurrency",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "pedongroup.com",
-        "endpoints": 120,
-        "revenue": 2038.57,
-        "edition": "Enterprise",
-        "license_date": "30/5/2025",
-        "product": "Endpoint Central Cloud",
-        "country": "Italy",
-        "industry": "Construction & Real Estate",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "schur.com",
-        "endpoints": 1000,
-        "revenue": 20814.30,
-        "edition": "Security",
-        "license_date": "16/5/2025",
-        "product": "Endpoint Central Cloud",
-        "country": "Denmark",
-        "industry": "Packaging Solutions",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-        "update_as": "May 2025",
-        "Domain": "adlerpelzer.com",
-        "endpoints": 5500,
-        "revenue": 16264.45,
-        "edition": "Enterprise",
-        "license_date": "21/5/2025",
-        "product": "Patch Manager Plus",
-        "country": "Germany",
-        "industry": "Automotive manufacturing",
-        "type": "Zero Cost",
-        "cpl": 0.00
-    },
-    {
-    "update_as": "June 2025",
-    "Domain": "ayalaland.com.ph",
-    "endpoints": 16606,
-    "revenue": 141919.01,
-    "edition": "Security",
-    "license_date": "30/6/2025",
-    "product": "Endpoint Central Cloud",
-    "country": "Philippines",
-    "industry": "Real Estate & Property Development",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "June 2025",
-    "Domain": "osourceglobal.com",
-    "endpoints": 1480,
-    "revenue": 19598.00,
-    "edition": "Security",
-    "license_date": "27/6/2025",
-    "product": "Endpoint Central",
-    "country": "India",
-    "industry": "IT/Consulting/BPO",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "June 2025",
-    "Domain": "securitas.nl",
-    "endpoints": 25,
-    "revenue": 375.30,
-    "edition": "Enterprise",
-    "license_date": "30/6/2025",
-    "product": "PMP Cloud",
-    "country": "Netherlands",
-    "industry": "Security Services",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "June 2025",
-    "Domain": "blupeak.com",
-    "endpoints": 500,
-    "revenue": 13155.00,
-    "edition": "UEM",
-    "license_date": "18/6/2025",
-    "product": "Endpoint Central Cloud",
-    "country": "US",
-    "industry": "Banking / Financial Services",
-    "type": "Purchased",
-    "cpl": 0.40
-  },
-  {
-    "update_as": "June 2025",
-    "Domain": "winchester.ac.uk",
-    "endpoints": 2750,
-    "revenue": 17415.00,
-    "edition": "Enterprise",
-    "license_date": "30/6/2025",
-    "product": "PMP Cloud",
-    "country": "UK",
-    "industry": "Education",
-    "type": "Purchased",
-    "cpl": 0.40
-  },
-  {
-    "update_as": "June 2025",
-    "Domain": "omialnovi.com",
-    "endpoints": 150,
-    "revenue": 4045.03,
-    "edition": "Professional",
-    "license_date": "10/6/2025",
-    "product": "Endpoint Central",
-    "country": "Croatia",
-    "industry": "Packaging & Manufacturing",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "June 2025",
-    "Domain": "latech.kz",
-    "endpoints": 9500,
-    "revenue": 61218.00,
-    "edition": "UEM",
-    "license_date": "10/6/2025",
-    "product": "Endpoint Central Cloud",
-    "country": "Russia",
-    "industry": "Education",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "June 2025",
-    "Domain": "holding-tss.com",
-    "endpoints": 200,
-    "revenue": 11031.00,
-    "edition": "UEM",
-    "license_date": "14/6/2025",
-    "product": "Endpoint Central Cloud",
-    "country": "Italy",
-    "industry": "Automotive",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "June 2025",
-    "Domain": "serkolat.com",
-    "endpoints": 2500,
-    "revenue": 59477.01,
-    "edition": "UEM",
-    "license_date": "24/6/2025",
-    "product": "Endpoint Central Cloud",
-    "country": "Spain",
-    "industry": "Manufacturing",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-  {
-    "update_as": "June 2025",
-    "Domain": "cyberwolf.io",
-    "endpoints": 65,
-    "revenue": 366.60,
-    "edition": "Enterprise",
-    "license_date": "14/6/2025",
-    "product": "PMP Cloud",
-    "country": "Belgium",
-    "industry": "Cybersecurity & Security Services",
-    "type": "Zero Cost",
-    "cpl": 0.00
-  },
-
-]
-
-
 # Function to process data
 def process_data(df):
-    # Make a copy to avoid modifying the original
-    df = df.copy()
-
-    # Basic data cleaning
-    if 'revenue' in df.columns:
-        df['revenue'] = pd.to_numeric(df['revenue'], errors='coerce')
-
-    if 'endpoints' in df.columns:
-        df['endpoints'] = pd.to_numeric(df['endpoints'], errors='coerce')
-
-    # Ensure update_as is string type
-    if 'update_as' in df.columns:
-        df['update_as'] = df['update_as'].astype(str)
-        df['month'] = df['update_as'].str.split(' ').str[0]
-
-    # Calculate deployment type based on product name
-    if 'product' in df.columns:
-        df['product'] = df['product'].astype(str)
-        df['deployment'] = df['product'].str.lower().apply(lambda x: 'Cloud' if 'cloud' in str(x) else 'On-Premises')
-
-    # Clean edition
-    if 'edition' in df.columns:
-        df['edition'] = df['edition'].astype(str)
-        df['edition_simple'] = df['edition'].str.split(' ').str[0]
-
+    df = df.copy() # Make a copy to avoid SettingWithCopyWarning
+    df['revenue'] = pd.to_numeric(df['revenue'], errors='coerce')
+    df['endpoints'] = pd.to_numeric(df['endpoints'], errors='coerce')
+    df['update_as'] = df['update_as'].astype(str)
+    df['month'] = df['update_as'].str.split(' ').str[0]
+    df['product'] = df['product'].astype(str)
+    df['deployment'] = df['product'].str.lower().apply(lambda x: 'Cloud' if 'cloud' in str(x) else 'On-Premises')
+    df['edition'] = df['edition'].astype(str)
+    df['edition_simple'] = df['edition'].str.split(' ').str[0]
     return df
 
+# Process the loaded data
+processed_df = process_data(df_raw)
 
-# Convert data to DataFrame and process
-df = pd.DataFrame(data)
-processed_df = process_data(df)
+# --- The rest of your script remains unchanged ---
 
 # Calculate summary statistics
 total_revenue = processed_df['revenue'].sum()
@@ -1245,8 +401,6 @@ with col1:
     if not other_industries.empty:
         other_revenue = other_industries['revenue'].sum()
         other_percentage = other_industries['percentage'].sum()
-
-        # Use pd.concat instead of append (which is deprecated)
         other_row = pd.DataFrame({
             'industry': ['Other'],
             'revenue': [other_revenue],
@@ -1263,16 +417,8 @@ with col1:
         labels={'industry': 'Industry', 'revenue': 'Revenue ($)'}
     )
 
-    fig.update_traces(
-        textinfo='percent+label',
-        textposition='outside'
-    )
-
-    fig.update_layout(
-        margin=dict(t=10, l=10, r=10, b=10),
-        height=400
-    )
-
+    fig.update_traces(textinfo='percent+label', textposition='outside')
+    fig.update_layout(margin=dict(t=10, l=10, r=10, b=10), height=400)
     st.plotly_chart(fig, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1293,15 +439,11 @@ endpoint_size_distribution = []
 for i, (lower, upper) in enumerate(size_ranges):
     count = processed_df[(processed_df['endpoints'] >= lower) & (processed_df['endpoints'] <= upper)].shape[0]
     if count > 0:
-        endpoint_size_distribution.append({
-            'range': range_labels[i],
-            'count': count
-        })
+        endpoint_size_distribution.append({'range': range_labels[i], 'count': count})
 
 endpoint_size_df = pd.DataFrame(endpoint_size_distribution)
 
 if not endpoint_size_df.empty:
-    # Map the range to an order for proper sorting
     range_order = {label: i for i, label in enumerate(range_labels)}
     endpoint_size_df['range_order'] = endpoint_size_df['range'].map(range_order)
     endpoint_size_df = endpoint_size_df.sort_values('range_order')
@@ -1317,21 +459,14 @@ if not endpoint_size_df.empty:
             color_discrete_sequence=['#FF8042'],
             labels={'range': 'Size Range', 'count': 'Count'}
         )
-
-        fig.update_layout(
-            plot_bgcolor='white',
-            hovermode='closest',
-            margin=dict(t=10, l=10, r=10, b=10),
-            height=400
-        )
-
+        fig.update_layout(plot_bgcolor='white', hovermode='closest', margin=dict(t=10, l=10, r=10, b=10), height=400)
         st.plotly_chart(fig, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-# Add Domain Distribution Analysis - New Visualization
+# Domain Distribution Analysis
 domain_count = processed_df['Domain'].value_counts().reset_index()
 domain_count.columns = ['Domain', 'Count']
-domain_count = domain_count[domain_count['Domain'] != ''].head(10)  # Top 10 domains, excluding empty
+domain_count = domain_count[domain_count['Domain'] != ''].head(10)
 
 if not domain_count.empty:
     st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
@@ -1345,19 +480,10 @@ if not domain_count.empty:
         color_discrete_sequence=['#00C49F'],
         labels={'Domain': '', 'Count': 'Number of Entries'}
     )
-
-    fig.update_layout(
-        plot_bgcolor='white',
-        hovermode='closest',
-        margin=dict(t=10, l=250, r=10, b=10),
-        height=400,
-        yaxis={'categoryorder': 'total ascending'}
-    )
-
+    fig.update_layout(plot_bgcolor='white', hovermode='closest', margin=dict(t=10, l=250, r=10, b=10), height=400, yaxis={'categoryorder': 'total ascending'})
     st.plotly_chart(fig, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # Footer
 st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: gray;'>© 2025 Revenue Analytics Dashboard</p>",
-            unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: gray;'>© 2025 Revenue Analytics Dashboard</p>", unsafe_allow_html=True)
