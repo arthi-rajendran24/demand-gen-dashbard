@@ -83,13 +83,13 @@ st.title("Revenue Analytics Dashboard")
 # Function to process data
 def process_data(df):
     df = df.copy() # Make a copy to avoid SettingWithCopyWarning
-    df['revenue'] = pd.to_numeric(df['revenue'], errors='coerce')
-    df['endpoints'] = pd.to_numeric(df['endpoints'], errors='coerce')
-    df['update_as'] = df['update_as'].astype(str)
-    df['month'] = df['update_as'].str.split(' ').str[0]
-    df['product'] = df['product'].astype(str)
-    df['deployment'] = df['product'].str.lower().apply(lambda x: 'Cloud' if 'cloud' in str(x) else 'On-Premises')
-    df['edition'] = df['edition'].astype(str)
+    df['revenue'] = pd.to_numeric(df['Revenue (in USD )'], errors='coerce')
+    df['endpoints'] = pd.to_numeric(df['Endpoints'], errors='coerce')
+    df['update_as'] = df['Update as of'].astype(str)
+    df['month'] = df['Update as of'].str.split(' ').str[0]
+    df['product'] = df['Product'].astype(str)
+    df['deployment'] = df['Product'].str.lower().apply(lambda x: 'Cloud' if 'cloud' in str(x) else 'On-Premises')
+    df['edition'] = df['Edition'].astype(str)
     df['edition_simple'] = df['edition'].str.split(' ').str[0]
     return df
 
@@ -99,8 +99,8 @@ processed_df = process_data(df_raw)
 # --- The rest of your script remains unchanged ---
 
 # Calculate summary statistics
-total_revenue = processed_df['Revenue (in USD )'].sum()
-total_endpoints = processed_df['Endpoints'].sum()
+total_revenue = processed_df['revenue'].sum()
+total_endpoints = processed_df['endpoints'].sum()
 
 unique_domains = processed_df[['Domain', 'Type']].drop_duplicates()
 paid_leads = unique_domains[unique_domains['Type'] == 'Purchased'].shape[0]
@@ -110,9 +110,9 @@ zero_cost_leads = unique_domains[unique_domains['Type'] == 'Zero Cost'].shape[0]
 revenue_by_lead_type = processed_df.groupby('Type')['Revenue (in USD )'].sum().reset_index()
 
 # Calculate average revenue per lead type
-avg_revenue_per_paid = revenue_by_lead_type[revenue_by_lead_type['Type'] == 'Purchased']['Revenue (in USD )'].values[
+avg_revenue_per_paid = revenue_by_lead_type[revenue_by_lead_type['Type'] == 'Purchased']['revenue'].values[
                            0] / paid_leads if paid_leads > 0 else 0
-avg_revenue_per_zero_cost = revenue_by_lead_type[revenue_by_lead_type['Type'] == 'Zero Cost']['Revenue (in USD )'].values[
+avg_revenue_per_zero_cost = revenue_by_lead_type[revenue_by_lead_type['Type'] == 'Zero Cost']['revenue'].values[
                                 0] / zero_cost_leads if zero_cost_leads > 0 else 0
 
 # Display KPI metrics in a row
