@@ -784,7 +784,7 @@ data = [
     "product": "Endpoint Central Cloud",
     "country": "Philippines",
     "industry": "Real Estate & Property Development",
-    "type": "Zero-Cost",
+    "type": "Zero Cost",
     "cpl": 0.00
   },
   {
@@ -797,7 +797,7 @@ data = [
     "product": "Endpoint Central",
     "country": "India",
     "industry": "IT/Consulting/BPO",
-    "type": "Zero-Cost",
+    "type": "Zero Cost",
     "cpl": 0.00
   },
   {
@@ -810,7 +810,7 @@ data = [
     "product": "PMP Cloud",
     "country": "Netherlands",
     "industry": "Security Services",
-    "type": "Zero-Cost",
+    "type": "Zero Cost",
     "cpl": 0.00
   },
   {
@@ -849,7 +849,7 @@ data = [
     "product": "Endpoint Central",
     "country": "Croatia",
     "industry": "Packaging & Manufacturing",
-    "type": "Zero-Cost",
+    "type": "Zero Cost",
     "cpl": 0.00
   },
   {
@@ -862,7 +862,7 @@ data = [
     "product": "Endpoint Central Cloud",
     "country": "Russia",
     "industry": "Education",
-    "type": "Zero-Cost",
+    "type": "Zero Cost",
     "cpl": 0.00
   },
   {
@@ -875,7 +875,7 @@ data = [
     "product": "Endpoint Central Cloud",
     "country": "Italy",
     "industry": "Automotive",
-    "type": "Zero-Cost",
+    "type": "Zero Cost",
     "cpl": 0.00
   },
   {
@@ -888,7 +888,7 @@ data = [
     "product": "Endpoint Central Cloud",
     "country": "Spain",
     "industry": "Manufacturing",
-    "type": "Zero-Cost",
+    "type": "Zero Cost",
     "cpl": 0.00
   },
   {
@@ -901,7 +901,7 @@ data = [
     "product": "PMP Cloud",
     "country": "Belgium",
     "industry": "Cybersecurity & Security Services",
-    "type": "Zero-Cost",
+    "type": "Zero Cost",
     "cpl": 0.00
   },
 
