@@ -1,204 +1,301 @@
+import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+from datetime import timedelta
 
-# --- 1. Data Loading and Cleaning (from GitHub) ---
+# --- Page Configuration ---
+st.set_page_config(
+    page_title="Demand Generation Performance Dashboard",
+    page_icon="🚀",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-def load_and_clean_data(url):
-    """Loads data from the specified URL and performs thorough cleaning."""
-    print(f"Fetching data from {url}...")
+# --- Caching Data Loading ---
+@st.cache_data
+def load_data(url):
+    """
+    Loads data from the given URL, performs preprocessing, and returns a DataFrame.
+    The @st.cache_data decorator ensures this function only runs once, caching the result.
+    """
     try:
-        # ** THE FIX IS HERE: skiprows=2 **
-        # This tells pandas to ignore the first two lines of the file.
-        df = pd.read_csv(url, skiprows=2)
-    except Exception as e:
-        print(f"Error fetching or reading data from URL: {e}")
-        return None
-
-    # Drop the 'Total' row and any fully empty rows
-    if 'Total' in df['Month'].values:
-        df = df[df['Month'] != 'Total'].reset_index(drop=True)
-    df.dropna(how='all', inplace=True)
-
-    # --- Clean and standardize columns ---
-
-    # Clean 'Revenue' column (remove $, commas)
-    df['Revenue'] = df['Revenue'].astype(str).str.replace(r'[$,]', '', regex=True).astype(float)
-
-    # Clean and convert 'Endpoints'
-    df['Endpoints'] = pd.to_numeric(df['Endpoints'], errors='coerce').fillna(0).astype(int)
-
-    # Convert 'License Date' to datetime, handling potential mixed formats
-    df['License Date'] = pd.to_datetime(df['License Date'], errors='coerce', dayfirst=False)
-    # For dates like 31/10/2024, a second pass with dayfirst=True can fix errors
-    mask = df['License Date'].isna()
-    df.loc[mask, 'License Date'] = pd.to_datetime(df.loc[mask, 'License Date'], errors='coerce', dayfirst=True)
-    df['MonthYear'] = df['License Date'].dt.to_period('M').astype(str)
-
-    # Standardize 'Type' column (handles 'Zero Cost', 'Zero-cost', 'Purchased', 'Purhased')
-    df['Type'] = df['Type'].str.strip().str.replace('-', ' ').str.title()
-    type_map = {'Purhased': 'Purchased', 'Zero Cost': 'Zero Cost'}
-    df['Type'] = df['Type'].map(type_map).fillna(df['Type']) # Keep original if not in map
-    df['Type'] = df['Type'].fillna('Other')
-
-    # Standardize 'Edition' column
-    df['Edition'] = df['Edition'].str.replace(r' \(.*\)', '', regex=True).str.strip()
-
-    # Standardize 'Product' column (handle abbreviations and casing)
-    product_map = {
-        'EC': 'Endpoint Central', 'EC Cloud': 'Endpoint Central Cloud',
-        'EC MSP Cloud': 'Endpoint Central MSP Cloud',
-        'Endpoint central cloud': 'Endpoint Central Cloud',
-        'PCP': 'Patch Manager Plus', 'PMP': 'Patch Manager Plus',
-        'PMP Cloud': 'Patch Manager Plus Cloud',
-        'VMP': 'Vulnerability Manager Plus',
-        'MDM': 'Mobile Device Manager Plus',
-        'MDMOnDemand': 'Mobile Device Manager Plus Cloud',
-        'Patch manager Plus': 'Patch Manager Plus',
-    }
-    df['Product'] = df['Product'].str.strip().replace(product_map)
-
-    # Handle multiple products in one cell by splitting and exploding
-    df['Product'] = df['Product'].str.split(', ')
-    df = df.explode('Product')
-    df['Product'] = df['Product'].str.strip()
-
-    # Clean 'Industry' column (remove newlines)
-    df['Industry'] = df['Industry'].str.replace('\n', ' ', regex=False).str.strip()
-
-    # Correct region names
-    df['Region'] = df['Region'].replace({'South Arica': 'South Africa'})
-
-    print("Data cleaning complete.")
-    return df.sort_values('License Date').reset_index(drop=True)
-
-# URL of the raw CSV file on GitHub
-github_url = 'https://raw.githubusercontent.com/arthi-rajendran24/demand-gen-dashbard/refs/heads/main/data_Conversions.csv'
-
-# Load and clean the data
-df_clean = load_and_clean_data(github_url)
-
-if df_clean is not None and not df_clean.empty:
-    # --- 2. Data Analysis & Aggregation ---
-    print("Analyzing data...")
-
-    # KPIs
-    total_revenue = df_clean['Revenue'].sum()
-    total_endpoints = df_clean['Endpoints'].sum()
-    num_deals = len(df_clean['Domain'].unique()) # Use unique domains for a more accurate deal count
-    avg_revenue_per_deal = total_revenue / num_deals
-
-    # Grouped data for charts
-    monthly_revenue = df_clean.groupby('MonthYear')['Revenue'].sum().reset_index()
-    monthly_deals = df_clean.groupby('MonthYear')['Domain'].nunique().rename('Deal Count').reset_index()
-    revenue_by_region = df_clean.groupby('Region')['Revenue'].sum().sort_values(ascending=False).reset_index()
-    revenue_by_product = df_clean.groupby('Product')['Revenue'].sum().sort_values(ascending=False).reset_index()
-    revenue_by_industry = df_clean.groupby('Industry')['Revenue'].sum().sort_values(ascending=False).head(15).reset_index() # Top 15
-    revenue_by_type = df_clean.groupby('Type')['Revenue'].sum().reset_index()
-    deals_by_type = df_clean.groupby('Type')['Domain'].nunique().rename('Deal Count').reset_index()
-
-
-    # --- 3. Visualization with Plotly ---
-    print("Creating visualizations...")
-    template = "plotly_white"
-
-    # Chart 1: Monthly Revenue and Deal Count
-    fig_monthly = make_subplots(specs=[[{"secondary_y": True}]])
-    fig_monthly.add_trace(
-        go.Bar(x=monthly_revenue['MonthYear'], y=monthly_revenue['Revenue'], name='Monthly Revenue', marker_color='cornflowerblue'),
-        secondary_y=False,
-    )
-    fig_monthly.add_trace(
-        go.Scatter(x=monthly_deals['MonthYear'], y=monthly_deals['Deal Count'], name='Deal Count', mode='lines+markers', line=dict(color='darkorange')),
-        secondary_y=True,
-    )
-    fig_monthly.update_layout(title_text='<b>Monthly Revenue and Deal Count</b>', template=template)
-    fig_monthly.update_yaxes(title_text="Total Revenue ($)", secondary_y=False)
-    fig_monthly.update_yaxes(title_text="Number of Deals", secondary_y=True)
-
-    # Chart 2 & 3: Conversion Type Analysis (Revenue and Count)
-    fig_type = make_subplots(rows=1, cols=2, specs=[[{'type':'domain'}, {'type':'domain'}]])
-    fig_type.add_trace(go.Pie(labels=revenue_by_type['Type'], values=revenue_by_type['Revenue'], name="Revenue"), 1, 1)
-    fig_type.add_trace(go.Pie(labels=deals_by_type['Type'], values=deals_by_type['Deal Count'], name="Deals"), 1, 2)
-    fig_type.update_traces(hole=.4, hoverinfo="label+percent+value")
-    fig_type.update_layout(
-        title_text='<b>Conversion Type Analysis: Purchased vs. Zero Cost</b>',
-        annotations=[dict(text='By Revenue', x=0.16, y=0.5, font_size=16, showarrow=False),
-                    dict(text='By Deal Count', x=0.84, y=0.5, font_size=16, showarrow=False)],
-        template=template
-    )
-
-    # Chart 4: Top 10 Revenue by Region
-    fig_region = px.bar(
-        revenue_by_region.head(10), x='Region', y='Revenue',
-        title='<b>Top 10 Regions by Revenue</b>', text_auto='.2s',
-        color='Revenue', color_continuous_scale='Blues'
-    )
-    fig_region.update_traces(textposition='outside')
-    fig_region.update_layout(template=template)
-
-    # Chart 5: Revenue by Product
-    fig_product = px.bar(
-        revenue_by_product, y='Product', x='Revenue', orientation='h',
-        title='<b>Revenue by Product</b>', text_auto='.2s',
-        color='Revenue', color_continuous_scale='Greens'
-    )
-    fig_product.update_layout(yaxis={'categoryorder':'total ascending'}, template=template)
-
-    # Chart 6: Revenue by Industry (Top 15)
-    fig_industry = px.bar(
-        revenue_by_industry, y='Industry', x='Revenue', orientation='h',
-        title='<b>Top 15 Industries by Revenue</b>', text_auto='.2s',
-        color='Revenue', color_continuous_scale='Purples'
-    )
-    fig_industry.update_layout(yaxis={'categoryorder':'total ascending'}, template=template)
-
-    # Chart 7: Revenue Distribution (Deal Size)
-    fig_dist_rev = px.histogram(
-        df_clean, x="Revenue", nbins=30,
-        title='<b>Distribution of Deal Size (by Revenue)</b>'
-    )
-    fig_dist_rev.update_layout(bargap=0.1, template=template)
-
-    # Chart 8: Revenue by Region and Product
-    fig_treemap = px.treemap(
-        df_clean, path=[px.Constant("All Regions"), 'Region', 'Product'], values='Revenue',
-        color='Revenue', hover_data=['Endpoints'],
-        color_continuous_scale='RdBu',
-        title='<b>Revenue Treemap: Region > Product</b>'
-    )
-    fig_treemap.update_layout(margin = dict(t=50, l=25, r=25, b=25), template=template)
-
-
-    # --- 4. Assemble Dashboard HTML ---
-    print("Generating HTML dashboard...")
-
-    with open('Conversions_Dashboard.html', 'w') as f:
-        f.write('<html><head>')
-        f.write('<style>body{font-family: Arial, sans-serif; background-color: #f4f4f4;} h1, h2 {color: #333;} .grid-container {display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 20px;} .kpi {background-color: #fff; padding: 20px; text-align: center; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);} .kpi h2 {margin: 0; color: #555; font-size: 18px;} .kpi .value {font-size: 36px; font-weight: bold; color: #0056b3; margin-top: 5px;} .chart {grid-column: span 3; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);} .chart-half {grid-column: span 1; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);} @media (max-width: 900px) { .grid-container {grid-template-columns: 1fr;} .chart, .chart-half {grid-column: span 1;} }</style>')
-        f.write('<title>Conversions Dashboard</title>')
-        f.write('</head><body>')
-        f.write('<h1 style="text-align:center;">Business Conversions Analysis Dashboard</h1>')
-
-        # KPI Section
-        f.write('<div class="grid-container">')
-        f.write(f'<div class="kpi"><h2>Total Revenue</h2><div class="value">${total_revenue:,.2f}</div></div>')
-        f.write(f'<div class="kpi"><h2>Total Endpoints Sold</h2><div class="value">{total_endpoints:,}</div></div>')
-        f.write(f'<div class="kpi"><h2>Average Revenue per Deal</h2><div class="value">${avg_revenue_per_deal:,.2f}</div></div>')
+        df = pd.read_csv(url)
         
-        # Charts
-        f.write(f'<div class="chart">{fig_monthly.to_html(full_html=False, include_plotlyjs="cdn")}</div>')
-        f.write(f'<div class="chart">{fig_type.to_html(full_html=False, include_plotlyjs=False)}</div>')
-        f.write(f'<div class="chart-half">{fig_region.to_html(full_html=False, include_plotlyjs=False)}</div>')
-        f.write(f'<div class="chart-half">{fig_dist_rev.to_html(full_html=False, include_plotlyjs=False)}</div>')
-        f.write(f'<div class="chart-half">{fig_product.to_html(full_html=False, include_plotlyjs=False)}</div>')
-        f.write(f'<div class="chart">{fig_industry.to_html(full_html=False, include_plotlyjs=False)}</div>')
-        f.write(f'<div class="chart">{fig_treemap.to_html(full_html=False, include_plotlyjs=False)}</div>')
+        # --- Data Preprocessing ---
+        # Convert 'Date' to datetime objects
+        df['Date'] = pd.to_datetime(df['Date'])
+        
+        # Anonymize domain names as requested
+        # Create a mapping from original domain to an anonymized name
+        unique_domains = df['Domain'].unique()
+        domain_mapping = {domain: f"Source {i+1}" for i, domain in enumerate(unique_domains)}
+        df['Anonymized Source'] = df['Domain'].map(domain_mapping)
+        
+        # Create new time-based features for filtering and aggregation
+        df['Month'] = df['Date'].dt.to_period('M').astype(str)
+        df['Week'] = df['Date'].dt.to_period('W').astype(str)
+        
+        # Ensure numeric columns are of the correct type, handling potential errors
+        numeric_cols = ['Conversions', 'Revenue', 'Cost', 'ROI', 'Impressions', 'Clicks', 'CTR', 'CPC', 'CPA']
+        for col in numeric_cols:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # Drop rows with missing critical values (like revenue or cost)
+        df.dropna(subset=['Revenue', 'Cost', 'Conversions'], inplace=True)
+        
+        return df, domain_mapping
 
-        f.write('</div>') # Close grid-container
-        f.write('</body></html>')
+    except Exception as e:
+        st.error(f"Error loading or processing data: {e}")
+        return pd.DataFrame(), {}
 
-    print("Dashboard 'Conversions_Dashboard.html' created successfully.")
+# --- Load Data ---
+DATA_URL = "https://raw.githubusercontent.com/arthi-rajendran24/demand-gen-dashbard/refs/heads/main/data_Conversions.csv"
+df, domain_mapping = load_data(DATA_URL)
+
+# Check if data loading was successful
+if df.empty:
+    st.warning("Could not load data. Please check the URL or your connection.")
+    st.stop()
+
+# --- Sidebar Filters ---
+st.sidebar.header("Dashboard Filters")
+
+# Date Range Filter
+min_date = df['Date'].min().date()
+max_date = df['Date'].max().date()
+
+date_range = st.sidebar.date_input(
+    "Select Date Range",
+    value=(min_date, max_date),
+    min_value=min_date,
+    max_value=max_date
+)
+
+# Handle case where user selects a single day
+start_date, end_date = date_range
+if len(date_range) == 1:
+    start_date = date_range[0]
+    end_date = date_range[0]
+
+# Source Filter (using anonymized names)
+all_sources = sorted(df['Anonymized Source'].unique())
+selected_sources = st.sidebar.multiselect(
+    "Select Source(s)",
+    options=all_sources,
+    default=all_sources
+)
+
+# --- Filter DataFrame based on selection ---
+filtered_df = df[
+    (df['Date'].dt.date >= start_date) &
+    (df['Date'].dt.date <= end_date) &
+    (df['Anonymized Source'].isin(selected_sources))
+]
+
+# Check if filtered data is empty
+if filtered_df.empty:
+    st.warning("No data available for the selected filters. Please adjust your selection.")
+    st.stop()
+
+# --- Main Dashboard ---
+st.title("🚀 Demand Generation Performance Dashboard")
+st.markdown("An interactive visualization of key marketing and conversion metrics.")
+
+# --- Key Performance Indicators (KPIs) ---
+st.subheader("Overall Performance Snapshot")
+
+# Calculate KPIs
+total_revenue = filtered_df['Revenue'].sum()
+total_cost = filtered_df['Cost'].sum()
+total_conversions = filtered_df['Conversions'].sum()
+total_clicks = filtered_df['Clicks'].sum()
+
+# Handle division by zero for metrics
+if total_cost > 0:
+    overall_roi = (total_revenue - total_cost) / total_cost
+    overall_cpa = total_cost / total_conversions if total_conversions > 0 else 0
 else:
-    print("Could not generate dashboard because data loading or cleaning failed.")
+    overall_roi = float('inf') if total_revenue > 0 else 0
+    overall_cpa = 0
+
+# Display KPIs in columns
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total Revenue", f"${total_revenue:,.2f}")
+col2.metric("Total Cost", f"${total_cost:,.2f}")
+col3.metric("Overall ROI", f"{overall_roi:.2%}")
+col4.metric("Total Conversions", f"{total_conversions:,.0f}")
+
+st.markdown("---")
+
+# --- Time Series Analysis ---
+st.subheader("Performance Trends Over Time")
+
+# Aggregate data by day for time series plotting
+time_series_df = filtered_df.groupby('Date').agg({
+    'Revenue': 'sum',
+    'Cost': 'sum',
+    'Conversions': 'sum'
+}).reset_index()
+
+fig_time_series = go.Figure()
+fig_time_series.add_trace(go.Scatter(x=time_series_df['Date'], y=time_series_df['Revenue'], mode='lines', name='Revenue', yaxis='y1'))
+fig_time_series.add_trace(go.Scatter(x=time_series_df['Date'], y=time_series_df['Conversions'], mode='lines', name='Conversions', yaxis='y2'))
+
+fig_time_series.update_layout(
+    title='Daily Revenue and Conversions',
+    xaxis_title='Date',
+    yaxis=dict(
+        title='Revenue ($)',
+        titlefont=dict(color='#1f77b4'),
+        tickfont=dict(color='#1f77b4')
+    ),
+    yaxis2=dict(
+        title='Conversions',
+        titlefont=dict(color='#ff7f0e'),
+        tickfont=dict(color='#ff7f0e'),
+        overlaying='y',
+        side='right'
+    ),
+    legend=dict(x=0, y=1.1, orientation='h'),
+    hovermode='x unified'
+)
+st.plotly_chart(fig_time_series, use_container_width=True)
+
+st.markdown("---")
+
+# --- Source-Level Analysis ---
+st.subheader("In-Depth Source Analysis")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("#### Performance by Source")
+    
+    # Aggregate data by source
+    source_performance = filtered_df.groupby('Anonymized Source').agg({
+        'Revenue': 'sum',
+        'Cost': 'sum',
+        'Conversions': 'sum',
+        'Clicks': 'sum',
+        'Impressions': 'sum'
+    }).reset_index()
+    
+    # Calculate source-level metrics
+    source_performance['ROI'] = (source_performance['Revenue'] - source_performance['Cost']) / source_performance['Cost']
+    source_performance['CPA'] = source_performance['Cost'] / source_performance['Conversions']
+    source_performance.replace([float('inf'), -float('inf')], None, inplace=True) # Handle infinite ROI/CPA
+
+    # User selection for bar chart metric
+    metric_to_plot = st.selectbox(
+        "Select metric to compare sources:",
+        options=['Revenue', 'Conversions', 'ROI', 'CPA'],
+        index=0
+    )
+
+    is_ascending = True if metric_to_plot == 'CPA' else False
+    
+    fig_source_bar = px.bar(
+        source_performance.sort_values(by=metric_to_plot, ascending=is_ascending).head(15),
+        x=metric_to_plot,
+        y='Anonymized Source',
+        orientation='h',
+        title=f'Top Sources by {metric_to_plot}',
+        labels={'Anonymized Source': 'Source'},
+        text_auto=True
+    )
+    fig_source_bar.update_traces(texttemplate='%{x:,.2f}' if metric_to_plot in ['ROI', 'CPA'] else '%{x:,.0f}', textposition='outside')
+    st.plotly_chart(fig_source_bar, use_container_width=True)
+
+
+with col2:
+    st.markdown("#### Contribution by Source")
+    
+    # User selection for pie chart metric
+    pie_metric = st.selectbox(
+        "Select metric for contribution pie chart:",
+        options=['Revenue', 'Conversions', 'Cost'],
+        index=0
+    )
+    
+    fig_pie = px.pie(
+        source_performance,
+        values=pie_metric,
+        names='Anonymized Source',
+        title=f'Contribution of each Source to Total {pie_metric}',
+        hole=0.4 # for a donut chart effect
+    )
+    fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+    st.plotly_chart(fig_pie, use_container_width=True)
+
+st.markdown("---")
+
+# --- Efficiency and Correlation Analysis ---
+st.subheader("Efficiency & Correlation Insights")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("#### Cost vs. Revenue by Source")
+    fig_scatter = px.scatter(
+        filtered_df,
+        x='Cost',
+        y='Revenue',
+        color='Anonymized Source',
+        size='Conversions',
+        hover_data=['Date'],
+        title='Cost vs. Revenue (Bubble size represents Conversions)',
+        size_max=60,
+        log_x=True, # Use log scale for better visualization if values are spread out
+        log_y=True
+    )
+    fig_scatter.update_layout(xaxis_title="Cost (Log Scale)", yaxis_title="Revenue (Log Scale)")
+    st.plotly_chart(fig_scatter, use_container_width=True)
+    
+with col2:
+    st.markdown("#### Key Efficiency Metrics Over Time")
+    efficiency_df = filtered_df.groupby('Date').agg({
+        'CTR': 'mean',
+        'CPC': 'mean',
+        'CPA': 'mean'
+    }).reset_index()
+    
+    efficiency_metric = st.selectbox(
+        "Select an efficiency metric to view over time:",
+        options=['CTR', 'CPC', 'CPA'],
+        index=2 # Default to CPA
+    )
+    
+    fig_efficiency = px.line(
+        efficiency_df,
+        x='Date',
+        y=efficiency_metric,
+        title=f'Daily Average {efficiency_metric} Trend',
+        markers=True
+    )
+    fig_efficiency.update_traces(line=dict(color='#d62728')) # Use a distinct color
+    st.plotly_chart(fig_efficiency, use_container_width=True)
+    
+st.markdown("---")
+
+# --- Detailed Data View ---
+st.subheader("Detailed Data Explorer")
+st.markdown("Use the filters in the sidebar to drill down into the data.")
+
+# Show a subset of columns for clarity
+display_cols = [
+    'Date', 'Anonymized Source', 'Conversions', 'Revenue', 'Cost', 
+    'ROI', 'CPA', 'Clicks', 'CTR', 'CPC'
+]
+st.dataframe(
+    filtered_df[display_cols].sort_values(by='Date', ascending=False).reset_index(drop=True),
+    use_container_width=True,
+    hide_index=True
+)
+
+st.sidebar.markdown("---")
+st.sidebar.info(
+    "This dashboard is created to visualize demand generation data. "
+    "All source domains have been anonymized for privacy."
+)
