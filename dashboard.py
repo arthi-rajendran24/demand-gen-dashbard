@@ -59,11 +59,14 @@ def load_and_prepare(csv_path: str = "data_Conversions.csv") -> pd.DataFrame:
 df = load_and_prepare()
 
 # ────────────────────────────────────────────────────────────────────────────────
-# 2. Sidebar filters
+# 2. Sidebar filters  **FIXED**
 # ────────────────────────────────────────────────────────────────────────────────
 st.sidebar.header("🔍  Filter Data")
 
-min_date, max_date = df["License Date"].min(), df["License Date"].max()
+# Convert Timestamp → date so Streamlit’s date_input gets a pure date default
+min_date = df["License Date"].dropna().min().date()
+max_date = df["License Date"].dropna().max().date()
+
 date_range = st.sidebar.date_input(
     "License Date range",
     value=(min_date, max_date),
@@ -71,19 +74,24 @@ date_range = st.sidebar.date_input(
     max_value=max_date,
 )
 
-edition_sel = st.sidebar.multiselect("Edition", sorted(df["Edition"].dropna().unique()))
-product_sel = st.sidebar.multiselect("Product", sorted(df["Product"].dropna().unique()))
-region_sel = st.sidebar.multiselect("Region", sorted(df["Region"].dropna().unique()))
-industry_sel = st.sidebar.multiselect("Industry", sorted(df["Industry"].dropna().unique()))
-type_sel = st.sidebar.multiselect("Deal Type", sorted(df["Type"].dropna().unique()))
+edition_sel  = st.sidebar.multiselect("Edition",   sorted(df["Edition"].dropna().unique()))
+product_sel  = st.sidebar.multiselect("Product",   sorted(df["Product"].dropna().unique()))
+region_sel   = st.sidebar.multiselect("Region",    sorted(df["Region"].dropna().unique()))
+industry_sel = st.sidebar.multiselect("Industry",  sorted(df["Industry"].dropna().unique()))
+type_sel     = st.sidebar.multiselect("Deal Type", sorted(df["Type"].dropna().unique()))
+
+# --- Normalise the two date types so they match ---
+start_ts, end_ts = map(pd.to_datetime, date_range)        # <-- pd.Timestamp objects
+license_dates     = df["License Date"]                    # already Timestamp
+date_mask         = license_dates.between(start_ts, end_ts)
 
 mask = (
-    (df["License Date"].between(*date_range))
-    & (df["Edition"].isin(edition_sel) if edition_sel else True)
-    & (df["Product"].isin(product_sel) if product_sel else True)
-    & (df["Region"].isin(region_sel) if region_sel else True)
-    & (df["Industry"].isin(industry_sel) if industry_sel else True)
-    & (df["Type"].isin(type_sel) if type_sel else True)
+    date_mask
+    & (df["Edition"].isin(edition_sel)  if edition_sel  else True)
+    & (df["Product"].isin(product_sel)  if product_sel  else True)
+    & (df["Region"].isin(region_sel)    if region_sel   else True)
+    & (df["Industry"].isin(industry_sel)if industry_sel else True)
+    & (df["Type"].isin(type_sel)        if type_sel     else True)
 )
 
 f = df.loc[mask].copy()
