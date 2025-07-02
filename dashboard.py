@@ -9,8 +9,9 @@ def load_and_clean_data(url):
     """Loads data from the specified URL and performs thorough cleaning."""
     print(f"Fetching data from {url}...")
     try:
-        # Pandas can read directly from a URL
-        df = pd.read_csv(url)
+        # ** THE FIX IS HERE: skiprows=2 **
+        # This tells pandas to ignore the first two lines of the file.
+        df = pd.read_csv(url, skiprows=2)
     except Exception as e:
         print(f"Error fetching or reading data from URL: {e}")
         return None
@@ -31,7 +32,8 @@ def load_and_clean_data(url):
     # Convert 'License Date' to datetime, handling potential mixed formats
     df['License Date'] = pd.to_datetime(df['License Date'], errors='coerce', dayfirst=False)
     # For dates like 31/10/2024, a second pass with dayfirst=True can fix errors
-    df['License Date'].fillna(pd.to_datetime(df['License Date'], errors='coerce', dayfirst=True), inplace=True)
+    mask = df['License Date'].isna()
+    df.loc[mask, 'License Date'] = pd.to_datetime(df.loc[mask, 'License Date'], errors='coerce', dayfirst=True)
     df['MonthYear'] = df['License Date'].dt.to_period('M').astype(str)
 
     # Standardize 'Type' column (handles 'Zero Cost', 'Zero-cost', 'Purchased', 'Purhased')
