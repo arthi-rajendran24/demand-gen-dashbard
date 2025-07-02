@@ -99,20 +99,20 @@ processed_df = process_data(df_raw)
 # --- The rest of your script remains unchanged ---
 
 # Calculate summary statistics
-total_revenue = processed_df['revenue'].sum()
-total_endpoints = processed_df['endpoints'].sum()
+total_revenue = processed_df['Revenue (in USD )'].sum()
+total_endpoints = processed_df['Endpoints'].sum()
 
-unique_domains = processed_df[['Domain', 'type']].drop_duplicates()
-paid_leads = unique_domains[unique_domains['type'] == 'Purchased'].shape[0]
-zero_cost_leads = unique_domains[unique_domains['type'] == 'Zero Cost'].shape[0]
+unique_domains = processed_df[['Domain', 'Type']].drop_duplicates()
+paid_leads = unique_domains[unique_domains['Type'] == 'Purchased'].shape[0]
+zero_cost_leads = unique_domains[unique_domains['Type'] == 'Zero Cost'].shape[0]
 
 # Calculate revenue by lead type
-revenue_by_lead_type = processed_df.groupby('type')['revenue'].sum().reset_index()
+revenue_by_lead_type = processed_df.groupby('Type')['Revenue (in USD )'].sum().reset_index()
 
 # Calculate average revenue per lead type
-avg_revenue_per_paid = revenue_by_lead_type[revenue_by_lead_type['type'] == 'Purchased']['revenue'].values[
+avg_revenue_per_paid = revenue_by_lead_type[revenue_by_lead_type['Type'] == 'Purchased']['Revenue (in USD )'].values[
                            0] / paid_leads if paid_leads > 0 else 0
-avg_revenue_per_zero_cost = revenue_by_lead_type[revenue_by_lead_type['type'] == 'Zero Cost']['revenue'].values[
+avg_revenue_per_zero_cost = revenue_by_lead_type[revenue_by_lead_type['Type'] == 'Zero Cost']['Revenue (in USD )'].values[
                                 0] / zero_cost_leads if zero_cost_leads > 0 else 0
 
 # Display KPI metrics in a row
