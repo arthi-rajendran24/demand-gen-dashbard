@@ -89,7 +89,7 @@ def process_data(df: pd.DataFrame) -> pd.DataFrame:
         lambda s: "Cloud" if "cloud" in s else "On-Premises")
     df["edition_simple"] = (
         df["edition"].astype(str)
-          .str.split().str[0]        # <-- Series-aware split
+          .str.split().str[0]        # Series-aware split
           .fillna("Unknown")
     )
     df["type"] = df["type"].apply(normalise_type)
@@ -98,30 +98,30 @@ def process_data(df: pd.DataFrame) -> pd.DataFrame:
 
 def compute_metrics(df: pd.DataFrame) -> dict:
     """Return YoY %, YTD %, latest-month revenue, etc."""
-    yr_latest = df["year"].max()
-    mo_latest = df[df["year"] == yr_latest]["month_num"].max()
+    latest_year = df["year"].max()
+    latest_month_num = df[df["year"] == latest_year]["month_num"].max()
 
-    cur_m  = df[(df["year"] == yr_latest) & (df["month_num"] == mo_latest)]
-    prev_m = df[(df["year"] == yr_latest - 1) &
-                (df["month_num"] == mo_latest)]
+    cur_m  = df[(df["year"] == latest_year) & (df["month_num"] == latest_month_num)]
+    prev_m = df[(df["year"] == latest_year - 1) &
+                (df["month_num"] == latest_month_num)]
 
     pct = lambda cur, prev: (cur - prev) / prev * 100 if prev else np.nan
 
     yoy_rev = pct(cur_m["revenue"].sum(),  prev_m["revenue"].sum())
     yoy_ep  = pct(cur_m["endpoints"].sum(), prev_m["endpoints"].sum())
 
-    cur_ytd  = df[(df["year"] == yr_latest) &
-                  (df["month_num"] <= mo_latest)]
-    prev_ytd = df[(df["year"] == yr_latest - 1) &
-                  (df["month_num"] <= mo_latest)]
+    cur_ytd  = df[(df["year"] == latest_year) &
+                  (df["month_num"] <= latest_month_num)]
+    prev_ytd = df[(df["year"] == latest_year - 1) &
+                  (df["month_num"] <= latest_month_num)]
 
     ytd_rev = pct(cur_ytd["revenue"].sum(),  prev_ytd["revenue"].sum())
     ytd_ep  = pct(cur_ytd["endpoints"].sum(), prev_ytd["endpoints"].sum())
 
-    month_str = datetime.strptime(str(mo_latest), "%m").strftime("%b")
+    month_str = datetime.strptime(str(latest_month_num), "%m").strftime("%b")
 
     return dict(
-        latest_year=int(yr_latest),
+        latest_year=int(latest_year),
         latest_month=month_str,
         latest_month_rev=cur_m["revenue"].sum(),
         yoy_rev=yoy_rev,
@@ -142,7 +142,7 @@ if df.empty:
 M = compute_metrics(df)
 
 # ─────────────────────────────────────────────────────────────
-# 4. GLOBAL CSS (pretty cards)
+# 4. GLOBAL CSS  (pretty KPI cards)
 # ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -157,7 +157,7 @@ st.markdown("""
   position:relative;
   padding:26px 28px 22px;
   background:#fff;
-  border-left:6px solid var(--accent, var(--slate));
+  border-left:6px solid var(--accent,var(--slate));
   border-radius:12px;
   box-shadow:0 4px 12px rgba(0,0,0,.08);
   transition:transform .15s ease, box-shadow .15s ease;
@@ -172,30 +172,15 @@ st.markdown("""
   width:110px;
   height:110px;
   top:-35px; right:-35px;
-  background:var(--accent, var(--slate));
+  background:var(--accent,var(--slate));
   opacity:.12;
   border-radius:50%;
 }
-.metric-title{
-  font-size:16px;
-  font-weight:600;
-  color:#475569;
-  margin-bottom:4px;
-}
-.metric-sub{
-  font-size:13px;
-  color:#64748B;
-  margin-bottom:8px;
-}
-.metric-value{
-  font-size:28px;
-  font-weight:800;
-  color:#1F2937;
-}
+.metric-title{font-size:16px;font-weight:600;color:#475569;margin-bottom:4px;}
+.metric-sub  {font-size:13px;color:#64748B;margin-bottom:8px;}
+.metric-value{font-size:28px;font-weight:800;color:#1F2937;}
 .chart-container{
-  background:#fff;
-  border-radius:8px;
-  padding:15px;
+  background:#fff;border-radius:8px;padding:15px;
   box-shadow:0 1px 3px rgba(0,0,0,.12),
              0 1px 2px rgba(0,0,0,.24);
   margin-bottom:20px;
@@ -206,11 +191,11 @@ st.markdown("""
 st.title("Revenue Analytics Dashboard")
 
 # ─────────────────────────────────────────────────────────────
-# 5. KPI CARDS (refreshed design)
+# 5. KPI CARDS
 # ─────────────────────────────────────────────────────────────
 def kpi(title:str, value:str, sub:str|None=None,
         accent:str="var(--blue)") -> str:
-    sub_html = (f'<div class="metric-sub">{sub}</div>' if sub else "")
+    sub_html = f'<div class="metric-sub">{sub}</div>' if sub else ""
     return (f'<div class="metric-card" style="--accent:{accent}">'
             f'<div class="metric-title">{title}</div>'
             f'{sub_html}'
@@ -218,66 +203,70 @@ def kpi(title:str, value:str, sub:str|None=None,
             f'</div>')
 
 
-# ---- data for cards ----
-total_rev        = f"${df['revenue'].sum():,.2f}"
-latest_month_lbl = f"{M['latest_month']} {M['latest_year']}"
-latest_rev       = f"${M['latest_month_rev']:,.2f}"
-total_eps        = f"{int(df['endpoints'].sum()):,}"
-yoy_rev_pct      = f"{M['yoy_rev']:.1f}%"
-ytd_rev_pct      = f"{M['ytd_rev']:.1f}%"
-yoy_ep_pct       = f"{M['yoy_ep']:.1f}%"
+# totals
+total_rev = f"${df['revenue'].sum():,.2f}"
+total_eps = f"{int(df['endpoints'].sum()):,}"
+
+# latest-month info
+latest_label = f"{M['latest_month']} {M['latest_year']}"
+latest_rev   = f"${M['latest_month_rev']:,.2f}"
+
+# percentages
+yoy_rev_pct  = f"{M['yoy_rev']:.1f}%"
+ytd_rev_pct  = f"{M['ytd_rev']:.1f}%"
+yoy_ep_pct   = f"{M['yoy_ep']:.1f}%"
 
 # lead counts
-unique_leads = df[["domain", "type"]].drop_duplicates()
+unique_leads = df[["domain","type"]].drop_duplicates()
 paid_leads   = (unique_leads["type"] == "Purchased").sum()
 zero_leads   = (unique_leads["type"] == "Zero Cost").sum()
 lead_ratio   = f"{paid_leads} / {zero_leads}"
 
-# ---------- ROW-1 ----------
+# ---- ROW-1 (5 cards) ----
 c1,c2,c3,c4,c5 = st.columns(5)
 c1.markdown(kpi("Total Revenue", total_rev,
                 accent="var(--blue)"), unsafe_allow_html=True)
-c2.markdown(kpi("Latest-Month Revenue", latest_rev, latest_month_lbl,
+c2.markdown(kpi("Latest-Month Revenue", latest_rev, latest_label,
                 accent="var(--pink)"), unsafe_allow_html=True)
 c3.markdown(kpi("Total Endpoints", total_eps,
                 accent="var(--emerald)"), unsafe_allow_html=True)
-c4.markdown(kpi(f"{latest_month_lbl} YoY Revenue", yoy_rev_pct,
+c4.markdown(kpi(f"{latest_label} YoY Revenue", yoy_rev_pct,
                 accent="var(--amber)"), unsafe_allow_html=True)
 c5.markdown(kpi("YTD Revenue vs PY", ytd_rev_pct,
                 accent="var(--slate)"), unsafe_allow_html=True)
 
-# ---------- ROW-2 ----------
+# ---- ROW-2 (2 cards) ----
 d1,d2 = st.columns(2)
 d1.markdown(kpi("Paid vs Zero-Cost Leads", lead_ratio,
                 accent="var(--blue)"), unsafe_allow_html=True)
-d2.markdown(kpi(f"{latest_month_lbl} YoY Endpoints", yoy_ep_pct,
+d2.markdown(kpi(f"{latest_label} YoY Endpoints", yoy_ep_pct,
                 accent="var(--emerald)"), unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────
-# 6. CHARTS  (identical to previous version)
+# 6. CHARTS
 # ─────────────────────────────────────────────────────────────
-mo_order = {m:i for i,m in enumerate(
+month_order = {m:i for i,m in enumerate(
     ["Jan","Feb","Mar","Apr","May","Jun","Jul",
      "Aug","Sep","Oct","Nov","Dec"], 1)}
 
 # 6-1  Monthly Revenue by Year
 rev_line = (df.groupby(["year","month","month_num"])["revenue"]
               .sum().reset_index().sort_values(["year","month_num"]))
-fig = px.line(rev_line, x="month_num", y="revenue", color="year",
-              markers=True,
-              labels={"month_num":"Month","revenue":"Revenue ($)"},
-              color_discrete_sequence=px.colors.qualitative.Bold)
-fig.update_xaxes(tickmode="array",
-                 tickvals=list(mo_order.values()),
-                 ticktext=list(mo_order.keys()))
+f1 = px.line(rev_line, x="month_num", y="revenue", color="year",
+             markers=True,
+             labels={"month_num":"Month","revenue":"Revenue ($)"},
+             color_discrete_sequence=px.colors.qualitative.Bold)
+f1.update_xaxes(tickmode="array",
+                tickvals=list(month_order.values()),
+                ticktext=list(month_order.keys()))
 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
 st.subheader("Monthly Revenue by Year")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(f1, use_container_width=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# 6-2  Monthly Customer Acquisition
+# 6-2  Monthly Customer Acquisition (legend fix)
 acq = (df.groupby(["year","month","month_num","type"]).size()
          .reset_index(name="count"))
 last_two = sorted(df["year"].unique())[-2:]
@@ -294,63 +283,66 @@ for yr in last_two:
                         name="Paid", marker_color="#4F46E5"))
     fg.add_trace(go.Bar(x=sub["month"], y=sub.get("Zero Cost",0),
                         name="Zero-Cost", marker_color="#10B981"))
-    fg.update_layout(barmode="stack",
-                     title=str(yr),
-                     plot_bgcolor="white",
-                     showlegend=(yr == last_two[0]),
-                     margin=dict(t=40,l=10,r=10,b=10), height=300)
+    fg.update_layout(
+        barmode="stack",
+        title=str(yr),
+        plot_bgcolor="white",
+        showlegend=bool(yr == last_two[0]),   # ← cast to native bool
+        margin=dict(t=40,l=10,r=10,b=10),
+        height=300
+    )
     st.plotly_chart(fg, use_container_width=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ── quick pie helper
+# helper pie
 def pie(title, data, names, values, seq):
     st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
     st.subheader(title)
-    f = px.pie(data, names=names, values=values,
-               hole=.4, color_discrete_sequence=seq)
-    f.update_traces(textinfo="percent+label", textposition="outside")
-    f.update_layout(margin=dict(t=10,l=10,r=10,b=10), height=350)
-    st.plotly_chart(f, use_container_width=True)
+    fp = px.pie(data, names=names, values=values,
+                hole=0.4, color_discrete_sequence=seq)
+    fp.update_traces(textinfo="percent+label", textposition="outside")
+    fp.update_layout(margin=dict(t=10,l=10,r=10,b=10), height=350)
+    st.plotly_chart(fp, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# 6-3  Lead-type pie
+# 6-3 Lead Type pie
 pie("Revenue by Lead Type",
     df.groupby("type")["revenue"].sum().reset_index(),
     "type","revenue",["#0088FE","#00C49F"])
 
-# 6-4  Country pie
+# 6-4 Country pie
 pie("Revenue by Country",
     df.groupby("country")["revenue"].sum()
       .reset_index().sort_values("revenue",ascending=False),
     "country","revenue",px.colors.qualitative.Pastel)
 
-# 6-5  Edition pie
+# 6-5 Edition pie
 pie("Revenue by Edition",
     df.groupby("edition_simple")["revenue"].sum().reset_index(),
     "edition_simple","revenue",
     ["#0088FE","#00C49F","#FFBB28","#FF8042"])
 
-# 6-6  Deployment pie
+# 6-6 Deployment pie
 pie("Revenue by Deployment",
     df.groupby("deployment")["revenue"].sum().reset_index(),
     "deployment","revenue",
     ["#0088FE","#00C49F"])
 
-# 6-7  Product bar
+# 6-7 Product bar
 prod = (df.groupby("product")["revenue"].sum()
           .reset_index().sort_values("revenue",ascending=False))
 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
 st.subheader("Revenue by Product")
-fig = px.bar(prod, y="product", x="revenue", orientation="h",
-             color_discrete_sequence=["#4F46E5"])
-fig.update_layout(plot_bgcolor="white",
-                  margin=dict(t=10,l=200,r=10,b=10),
-                  height=450,
-                  yaxis={"categoryorder":"total ascending"})
-st.plotly_chart(fig, use_container_width=True)
+f_prod = px.bar(prod, y="product", x="revenue", orientation="h",
+                color_discrete_sequence=["#4F46E5"])
+f_prod.update_layout(plot_bgcolor="white",
+                     margin=dict(t=10,l=200,r=10,b=10),
+                     height=450,
+                     yaxis={"categoryorder":"total ascending"})
+st.plotly_chart(f_prod, use_container_width=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# 6-8  Industry pie
+# 6-8 Industry pie
 ind = (df.groupby("industry")["revenue"].sum()
          .reset_index().sort_values("revenue",ascending=False))
 ind_top = ind.head(6)
@@ -363,12 +355,12 @@ if len(ind) > 6:
 pie("Revenue by Industry", ind_top, "industry", "revenue",
     px.colors.qualitative.Set3)
 
-# 6-9  Endpoint size distribution
+# 6-9 Endpoint distribution
 bins = [
     (0,100),(101,200),(201,300),(301,400),(401,500),
     (501,600),(601,700),(701,800),(801,900),
     (901,999),(1000,1499),(1500,1999),(2000,2499),
-    (2500,2999),(3000,4999),(5000,9999),(10000, float("inf"))
+    (2500,2999),(3000,4999),(5000,9999),(10000,float("inf"))
 ]
 labels = [
     "0-100","101-200","201-300","301-400","401-500",
@@ -377,10 +369,8 @@ labels = [
     "3000+","5000+","10000+"
 ]
 dist = [
-    {
-        "range": lab,
-        "count": df[(df["endpoints"]>=lo)&(df["endpoints"]<=hi)].shape[0]
-    }
+    {"range":lab,
+     "count":df[(df["endpoints"]>=lo)&(df["endpoints"]<=hi)].shape[0]}
     for (lo,hi),lab in zip(bins,labels)
     if df[(df["endpoints"]>=lo)&(df["endpoints"]<=hi)].shape[0]
 ]
@@ -390,27 +380,27 @@ if dist:
     ddf = ddf.sort_values("order")
     st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
     st.subheader("Endpoint Size Distribution")
-    f = px.bar(ddf, x="range", y="count",
-               color_discrete_sequence=["#FF8042"])
-    f.update_layout(plot_bgcolor="white",
-                    margin=dict(t=10,l=10,r=10,b=40),
-                    height=400)
-    st.plotly_chart(f, use_container_width=True)
+    f_dist = px.bar(ddf, x="range", y="count",
+                    color_discrete_sequence=["#FF8042"])
+    f_dist.update_layout(plot_bgcolor="white",
+                         margin=dict(t=10,l=10,r=10,b=40),
+                         height=400)
+    st.plotly_chart(f_dist, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# 6-10  Top 10 Domains
+# 6-10 Top Domains
 top_dom = df["domain"].value_counts().head(10).reset_index()
 top_dom.columns = ["domain","count"]
 if not top_dom.empty:
     st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
     st.subheader("Top 10 Domains by Frequency")
-    f = px.bar(top_dom, y="domain", x="count", orientation="h",
-               color_discrete_sequence=["#00C49F"])
-    f.update_layout(plot_bgcolor="white",
-                    margin=dict(t=10,l=250,r=10,b=40),
-                    height=450,
-                    yaxis={"categoryorder":"total ascending"})
-    st.plotly_chart(f, use_container_width=True)
+    f_dom = px.bar(top_dom, y="domain", x="count", orientation="h",
+                   color_discrete_sequence=["#00C49F"])
+    f_dom.update_layout(plot_bgcolor="white",
+                        margin=dict(t=10,l=250,r=10,b=40),
+                        height=450,
+                        yaxis={"categoryorder":"total ascending"})
+    st.plotly_chart(f_dom, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────
