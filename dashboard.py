@@ -17,7 +17,7 @@ st.set_page_config(page_title="Revenue Analytics Dashboard",
 # ────────────────────────────────────────────────────────────────────────────
 # 2. HELPERS
 # ────────────────────────────────────────────────────────────────────────────
-CSV_FILE = "data_Conversions.csv"   # put next to this script
+CSV_FILE = "data_Conversions.csv"   # place next to this script
 
 
 def load_data(path: str) -> pd.DataFrame:
@@ -73,27 +73,37 @@ def process_data(df: pd.DataFrame) -> pd.DataFrame:
     df["month_num"] = df["month"].map(month_map)
     df["deployment"] = df["product"].str.lower().apply(
         lambda s: "Cloud" if "cloud" in s else "On-Premises")
-    df["edition_simple"] = df["edition"].astype(str).str.split().str[0]
+    df["edition_simple"] = df["edition"].astype(str).split().str[0]
     df["type"] = df["type"].apply(normalise_type)
     return df
 
 
 def yoy_ytd(df: pd.DataFrame):
+    """Return YoY %, YTD %, and latest-month revenue."""
     yr_latest = df["year"].max()
     mo_latest = df[df["year"] == yr_latest]["month_num"].max()
+
     cur_m = df[(df["year"] == yr_latest) & (df["month_num"] == mo_latest)]
     prev_m = df[(df["year"] == yr_latest - 1) & (df["month_num"] == mo_latest)]
+
     pct = lambda cur, prev: (cur - prev) / prev * 100 if prev else np.nan
     yoy_rev = pct(cur_m["revenue"].sum(), prev_m["revenue"].sum())
     yoy_ep = pct(cur_m["endpoints"].sum(), prev_m["endpoints"].sum())
+
     cur_ytd = df[(df["year"] == yr_latest) & (df["month_num"] <= mo_latest)]
     prev_ytd = df[(df["year"] == yr_latest - 1) & (df["month_num"] <= mo_latest)]
     ytd_rev = pct(cur_ytd["revenue"].sum(), prev_ytd["revenue"].sum())
     ytd_ep = pct(cur_ytd["endpoints"].sum(), prev_ytd["endpoints"].sum())
-    return dict(latest_year=int(yr_latest),
-                latest_month=datetime.strptime(str(mo_latest), "%m").strftime("%b"),
-                yoy_rev=yoy_rev, yoy_ep=yoy_ep,
-                ytd_rev=ytd_rev, ytd_ep=ytd_ep)
+
+    return dict(
+        latest_year=int(yr_latest),
+        latest_month=datetime.strptime(str(mo_latest), "%m").strftime("%b"),
+        latest_month_rev=cur_m["revenue"].sum(),    # <─ NEW
+        yoy_rev=yoy_rev,
+        yoy_ep=yoy_ep,
+        ytd_rev=ytd_rev,
+        ytd_ep=ytd_ep
+    )
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -104,7 +114,7 @@ if df.empty:
     st.warning("No usable rows after cleaning.")
     st.stop()
 
-m = yoy_ytd(df)
+metrics = yoy_ytd(df)
 
 # ────────────────────────────────────────────────────────────────────────────
 # 4. STYLE
@@ -124,26 +134,40 @@ st.markdown("""
 st.title("Revenue Analytics Dashboard")
 
 # ────────────────────────────────────────────────────────────────────────────
-# 5. KPI CARDS
+# 5. KPI CARDS  (added latest-month revenue)
 # ────────────────────────────────────────────────────────────────────────────
-total_rev, total_ep = df["revenue"].sum(), df["endpoints"].sum()
-u_domains = df[["domain", "type"]].drop_duplicates()
-paid, zero = (u_domains["type"] == "Purchased").sum(), (u_domains["type"] == "Zero Cost").sum()
+total_rev = df["revenue"].sum()
+total_ep = df["endpoints"].sum()
 
-c1, c2, c3, c4 = st.columns(4)
+u = df[["domain", "type"]].drop_duplicates()
+paid_leads = (u["type"] == "Purchased").sum()
+zero_leads = (u["type"] == "Zero Cost").sum()
+
+# first row – five cards
+c1, c2, c3, c4, c5 = st.columns(5)
 c1.markdown(f"""<div class="metric-card"><div class="metric-title">Total Revenue</div>
 <span class="metric-value">${total_rev:,.2f}</span></div>""", unsafe_allow_html=True)
-c2.markdown(f"""<div class="metric-card"><div class="metric-title">Total Endpoints</div>
+
+c2.markdown(f"""<div class="metric-card"><div class="metric-title">Latest-Month Revenue<br>({metrics['latest_month']} {metrics['latest_year']})</div>
+<span class="metric-value">${metrics['latest_month_rev']:,.2f}</span></div>""", unsafe_allow_html=True)
+
+c3.markdown(f"""<div class="metric-card"><div class="metric-title">Total Endpoints</div>
 <span class="metric-value">{int(total_ep):,}</span></div>""", unsafe_allow_html=True)
-c3.markdown(f"""<div class="metric-card"><div class="metric-title">{m['latest_month']} {m['latest_year']} YoY Revenue</div>
-<span class="metric-value">{m['yoy_rev']:.1f}%</span></div>""", unsafe_allow_html=True)
-c4.markdown(f"""<div class="metric-card"><div class="metric-title">YTD Revenue vs PY</div>
-<span class="metric-value">{m['ytd_rev']:.1f}%</span></div>""", unsafe_allow_html=True)
-c5, c6 = st.columns(2)
-c5.markdown(f"""<div class="metric-card"><div class="metric-title">Paid vs Zero-Cost Leads</div>
-<span class="metric-value">{paid} / {zero}</span></div>""", unsafe_allow_html=True)
-c6.markdown(f"""<div class="metric-card"><div class="metric-title">{m['latest_month']} {m['latest_year']} YoY Endpoints</div>
-<span class="metric-value">{m['yoy_ep']:.1f}%</span></div>""", unsafe_allow_html=True)
+
+c4.markdown(f"""<div class="metric-card"><div class="metric-title">{metrics['latest_month']} {metrics['latest_year']} YoY Revenue</div>
+<span class="metric-value">{metrics['yoy_rev']:.1f}%</span></div>""", unsafe_allow_html=True)
+
+c5.markdown(f"""<div class="metric-card"><div class="metric-title">YTD Revenue vs PY</div>
+<span class="metric-value">{metrics['ytd_rev']:.1f}%</span></div>""", unsafe_allow_html=True)
+
+# second row – leads & YoY endpoints
+c6, c7 = st.columns(2)
+c6.markdown(f"""<div class="metric-card"><div class="metric-title">Paid vs Zero-Cost Leads</div>
+<span class="metric-value">{paid_leads} / {zero_leads}</span></div>""", unsafe_allow_html=True)
+
+c7.markdown(f"""<div class="metric-card"><div class="metric-title">{metrics['latest_month']} {metrics['latest_year']} YoY Endpoints</div>
+<span class="metric-value">{metrics['yoy_ep']:.1f}%</span></div>""", unsafe_allow_html=True)
+
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ────────────────────────────────────────────────────────────────────────────
