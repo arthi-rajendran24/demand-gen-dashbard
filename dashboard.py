@@ -142,75 +142,109 @@ if df.empty:
 m = metrics_yoy_ytd(df)
 
 # ─────────────────────────────────────────────────────────────
-# 4. CSS STYLE
+# 4. CSS STYLE  (updated – nicer cards)
 # ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-.metric-card{background:#f8f9fa;border-radius:5px;padding:20px;
-             box-shadow:0 1px 3px rgba(0,0,0,.12),
-                        0 1px 2px rgba(0,0,0,.24);
-             text-align:center;}
-.metric-title{font-size:18px;font-weight:500;color:#333;}
-.metric-value{font-size:24px;font-weight:700;margin-top:8px;}
-.chart-container{background:white;border-radius:5px;padding:15px;
-                 box-shadow:0 1px 3px rgba(0,0,0,.12),
-                            0 1px 2px rgba(0,0,0,.24);
-                 margin-bottom:20px;}
+:root{
+  --blue:#4F46E5;        /* primary */
+  --emerald:#10B981;     /* success  */
+  --amber:#F59E0B;       /* warning  */
+  --pink:#EC4899;        /* fun      */
+  --slate:#64748B;       /* neutral  */
+}
+
+/* ---------- KPI CARD ---------- */
+.metric-card{
+  position:relative;
+  padding:26px 28px 22px;
+  border-radius:12px;
+  background:#fff;
+  border-left:6px solid var(--accent, var(--slate));
+  box-shadow:0 4px 12px rgba(0,0,0,.08);
+  overflow:hidden;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.metric-card:hover{
+  transform:translateY(-4px);
+  box-shadow:0 8px 20px rgba(0,0,0,.12);
+}
+.metric-card::before{          /* soft circle in corner */
+  content:"";
+  position:absolute;
+  width:110px;
+  height:110px;
+  top:-35px;
+  right:-35px;
+  background:var(--accent, var(--slate));
+  opacity:.12;
+  border-radius:50%;
+}
+.metric-title{
+  font-size:16px;
+  font-weight:600;
+  color:#475569;
+  letter-spacing:.1px;
+  margin-bottom:4px;
+}
+.metric-sub{
+  font-size:13px;
+  color:#64748B;
+  margin-bottom:8px;
+}
+.metric-value{
+  font-size:28px;
+  font-weight:800;
+  color:#1F2937;
+}
 </style>
 """, unsafe_allow_html=True)
 
-st.title("Revenue Analytics Dashboard")
-
 # ─────────────────────────────────────────────────────────────
-# 5. KPI CARDS  (includes Latest-Month Revenue)
+# 5. KPI CARDS (refreshed design)
 # ─────────────────────────────────────────────────────────────
-total_rev = df["revenue"].sum()
-total_ep = df["endpoints"].sum()
+def kpi(title:str,
+        value:str,
+        sub:str|None=None,
+        accent:str="var(--blue)") -> str:
+    """Return HTML for a single KPI card."""
+    sub_html = f'<div class="metric-sub">{sub}</div>' if sub else ""
+    return (f'<div class="metric-card" style="--accent:{accent}">'
+            f'<div class="metric-title">{title}</div>'
+            f'{sub_html}'
+            f'<div class="metric-value">{value}</div>'
+            f'</div>')
 
-unique_leads = df[["domain", "type"]].drop_duplicates()
-paid_leads = (unique_leads["type"] == "Purchased").sum()
-zero_leads = (unique_leads["type"] == "Zero Cost").sum()
 
-# First row: 5 cards
-c1, c2, c3, c4, c5 = st.columns(5)
+# ••• Data for cards •••
+total_rev       = f"${df['revenue'].sum():,.2f}"
+latest_month    = f"{m['latest_month']} {m['latest_year']}"
+latest_month_rev= f"${m['latest_month_rev']:,.2f}"
+total_ep        = f"{int(df['endpoints'].sum()):,}"
+yoy_rev_pct     = f"{m['yoy_rev']:.1f}%"
+ytd_rev_pct     = f"{m['ytd_rev']:.1f}%"
+lead_ratio      = f"{paid_leads} / {zero_leads}"
+yoy_ep_pct      = f"{m['yoy_ep']:.1f}%"
 
-c1.markdown(f"""<div class="metric-card">
-    <div class="metric-title">Total Revenue</div>
-    <div class="metric-value">${total_rev:,.2f}</div>
-</div>""", unsafe_allow_html=True)
+# ---------- ROW-1  (5 cards) ----------
+c1,c2,c3,c4,c5 = st.columns(5)
+c1.markdown(kpi("Total Revenue",        total_rev,             accent="var(--blue)"),
+            unsafe_allow_html=True)
+c2.markdown(kpi("Latest-Month Revenue", latest_month_rev, latest_month,
+                accent="var(--pink)"), unsafe_allow_html=True)
+c3.markdown(kpi("Total Endpoints",      total_ep,               accent="var(--emerald)"),
+            unsafe_allow_html=True)
+c4.markdown(kpi(f"{latest_month} YoY Revenue",  yoy_rev_pct,
+                accent="var(--amber)"), unsafe_allow_html=True)
+c5.markdown(kpi("YTD Revenue vs PY",    ytd_rev_pct,            accent="var(--slate)"),
+            unsafe_allow_html=True)
 
-c2.markdown(f"""<div class="metric-card">
-    <div class="metric-title">Latest-Month Revenue<br>({m['latest_month']} {m['latest_year']})</div>
-    <div class="metric-value">${m['latest_month_rev']:,.2f}</div>
-</div>""", unsafe_allow_html=True)
-
-c3.markdown(f"""<div class="metric-card">
-    <div class="metric-title">Total Endpoints</div>
-    <div class="metric-value">{int(total_ep):,}</div>
-</div>""", unsafe_allow_html=True)
-
-c4.markdown(f"""<div class="metric-card">
-    <div class="metric-title">{m['latest_month']} {m['latest_year']} YoY Revenue</div>
-    <div class="metric-value">{m['yoy_rev']:.1f}%</div>
-</div>""", unsafe_allow_html=True)
-
-c5.markdown(f"""<div class="metric-card">
-    <div class="metric-title">YTD Revenue vs PY</div>
-    <div class="metric-value">{m['ytd_rev']:.1f}%</div>
-</div>""", unsafe_allow_html=True)
-
-# Second row: Leads + YoY endpoints
-c6, c7 = st.columns(2)
-
-c6.markdown(f"""<div class="metric-card">
-    <div class="metric-title">Paid vs Zero-Cost Leads</div>
-    <div class="metric-value">{paid_leads} / {zero_leads}</div>
-</div>""", unsafe_allow_html=True)
-
-c7.markdown(f"""<div class="metric-card">
-    <div class="metric-title">{m['latest_month']} {m['latest_year']} YoY Endpoints</div>
-    <div class="metric-value">{m['yoy_ep']:.1f}%</div>
-</div>""", unsafe_allow_html=True)
+# ---------- ROW-2  (2 cards) ----------
+d1,d2 = st.columns(2)
+d1.markdown(kpi("Paid vs Zero-Cost Leads", lead_ratio,
+                accent="var(--blue)"), unsafe_allow_html=True)
+d2.markdown(kpi(f"{latest_month} YoY Endpoints", yoy_ep_pct,
+                accent="var(--emerald)"), unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
